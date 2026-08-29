@@ -11,7 +11,7 @@ import com.fest.visuals.api.module.Module;
 import com.fest.visuals.api.module.ModuleRegister;
 import com.fest.visuals.api.module.setting.SliderSetting;
 
-@ModuleRegister(name = "Auto Eat", desc = "Автоматически ест еду при определённом значении голода", category = Category.UTILITY)
+@ModuleRegister(name = "Auto Eat", desc = "Автоматически ест еду при определённом значении голода", category = Category.OTHER)
 public class AutoEatModule extends Module {
     @Getter private static final AutoEatModule instance = new AutoEatModule();
 

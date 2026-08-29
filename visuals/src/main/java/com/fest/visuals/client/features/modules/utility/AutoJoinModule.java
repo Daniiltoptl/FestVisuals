@@ -13,7 +13,7 @@ import com.fest.visuals.api.system.configs.UtilityConfig;
  * Команда задаётся в other/utility.json -> joinCommand (без ведущего '/').
  * Отправляется один раз, спустя небольшую задержку после входа на сервер.
  */
-@ModuleRegister(name = "Auto Join", desc = "Автоматически заходит на режим", category = Category.UTILITY)
+@ModuleRegister(name = "Auto Join", desc = "Автоматически заходит на режим", category = Category.OTHER)
 public class AutoJoinModule extends Module {
     @Getter private static final AutoJoinModule instance = new AutoJoinModule();
 

@@ -16,7 +16,7 @@ import java.util.regex.Pattern;
  * в текущем ClickGUI нет текстового поля ввода. Работает только с
  * вашим собственным аккаунтом на сервере, куда вы сами вводите пароль.
  */
-@ModuleRegister(name = "Auto Auth", desc = "Автоматически регистрирует и входит в аккаунт на сервере", category = Category.UTILITY)
+@ModuleRegister(name = "Auto Auth", desc = "Автоматически регистрирует и входит в аккаунт на сервере", category = Category.OTHER)
 public class AutoAuthModule extends Module {
     @Getter private static final AutoAuthModule instance = new AutoAuthModule();
 

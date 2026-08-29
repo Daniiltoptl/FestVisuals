@@ -33,7 +33,7 @@ public class ModuleManager {
                 AnimationsModule.getInstance(),
                 AmbienceModule.getInstance(),
 
-                // UTILITY
+                // OTHER (utility modules)
                 AutoAcceptModule.getInstance(),
                 AutoAuthModule.getInstance(),
                 AutoEatModule.getInstance(),

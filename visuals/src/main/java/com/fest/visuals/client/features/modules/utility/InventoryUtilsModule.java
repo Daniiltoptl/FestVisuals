@@ -17,7 +17,7 @@ import com.fest.visuals.api.module.ModuleRegister;
  * автоматически. Не даёт никакого игрового преимущества — это ровно то
  * же самое действие, которое игрок мог бы сделать вручную.
  */
-@ModuleRegister(name = "Inventory Utils", desc = "Помощник по инвентарю", category = Category.UTILITY)
+@ModuleRegister(name = "Inventory Utils", desc = "Помощник по инвентарю", category = Category.OTHER)
 public class InventoryUtilsModule extends Module {
     @Getter private static final InventoryUtilsModule instance = new InventoryUtilsModule();
 

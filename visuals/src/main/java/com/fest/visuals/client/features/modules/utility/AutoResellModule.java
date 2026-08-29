@@ -16,7 +16,7 @@ import java.util.regex.Pattern;
  * (resellTrigger / resellCommand) — они зависят от конкретного плагина
  * аукциона на сервере, поэтому вынесены в конфиг, а не захардкожены.
  */
-@ModuleRegister(name = "Auto Resell", desc = "Автоматически перевыставляет предметы на аукционе", category = Category.UTILITY)
+@ModuleRegister(name = "Auto Resell", desc = "Автоматически перевыставляет предметы на аукционе", category = Category.OTHER)
 public class AutoResellModule extends Module {
     @Getter private static final AutoResellModule instance = new AutoResellModule();
 

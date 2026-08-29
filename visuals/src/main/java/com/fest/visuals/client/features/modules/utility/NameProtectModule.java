@@ -11,7 +11,7 @@ import com.fest.visuals.api.module.setting.ModeSetting;
  * подстроку с вашим ником в тексте, который клиент сам рисует на экране.
  * Не влияет на сетевой протокол и не даёт никакого игрового преимущества.
  */
-@ModuleRegister(name = "Name Protect", desc = "Визуально изменяет ник игрока", category = Category.UTILITY)
+@ModuleRegister(name = "Name Protect", desc = "Визуально изменяет ник игрока", category = Category.OTHER)
 public class NameProtectModule extends Module {
     @Getter private static final NameProtectModule instance = new NameProtectModule();
 

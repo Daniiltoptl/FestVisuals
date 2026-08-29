@@ -13,7 +13,7 @@ import com.fest.visuals.api.module.Category;
 import com.fest.visuals.api.module.Module;
 import com.fest.visuals.api.module.ModuleRegister;
 
-@ModuleRegister(name = "Auto Invisible", desc = "Автоматически пьёт зелье невидимости", category = Category.UTILITY)
+@ModuleRegister(name = "Auto Invisible", desc = "Автоматически пьёт зелье невидимости", category = Category.OTHER)
 public class AutoInvisibleModule extends Module {
     @Getter private static final AutoInvisibleModule instance = new AutoInvisibleModule();
 

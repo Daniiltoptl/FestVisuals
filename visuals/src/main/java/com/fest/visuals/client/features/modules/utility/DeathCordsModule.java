@@ -15,7 +15,7 @@ import com.fest.visuals.api.utils.other.TextUtil;
  * (не отправляются на сервер). Включите deathCordsPublic в
  * other/utility.json, если хотите реально отправлять их в чат сервера.
  */
-@ModuleRegister(name = "Death Cords", desc = "Отправляет координаты смерти в чат", category = Category.UTILITY)
+@ModuleRegister(name = "Death Cords", desc = "Отправляет координаты смерти в чат", category = Category.OTHER)
 public class DeathCordsModule extends Module {
     @Getter private static final DeathCordsModule instance = new DeathCordsModule();
 

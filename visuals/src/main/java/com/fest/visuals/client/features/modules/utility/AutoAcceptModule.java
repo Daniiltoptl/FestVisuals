@@ -10,7 +10,7 @@ import com.fest.visuals.api.utils.other.ChatPacketUtil;
 
 import java.util.regex.Pattern;
 
-@ModuleRegister(name = "Auto Accept", desc = "Автоматически принимает телепортацию", category = Category.UTILITY)
+@ModuleRegister(name = "Auto Accept", desc = "Автоматически принимает телепортацию", category = Category.OTHER)
 public class AutoAcceptModule extends Module {
     @Getter private static final AutoAcceptModule instance = new AutoAcceptModule();
 

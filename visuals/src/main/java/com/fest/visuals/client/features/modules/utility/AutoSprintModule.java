@@ -7,7 +7,7 @@ import com.fest.visuals.api.module.Category;
 import com.fest.visuals.api.module.Module;
 import com.fest.visuals.api.module.ModuleRegister;
 
-@ModuleRegister(name = "Auto Sprint", desc = "Автоматически нажимает спринт", category = Category.UTILITY)
+@ModuleRegister(name = "Auto Sprint", desc = "Автоматически нажимает спринт", category = Category.OTHER)
 public class AutoSprintModule extends Module {
     @Getter private static final AutoSprintModule instance = new AutoSprintModule();
 

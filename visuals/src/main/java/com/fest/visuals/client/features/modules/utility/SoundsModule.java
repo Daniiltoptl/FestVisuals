@@ -7,7 +7,7 @@ import com.fest.visuals.api.module.ModuleRegister;
 import com.fest.visuals.api.module.setting.ModeSetting;
 import com.fest.visuals.api.utils.other.SoundUtil;
 
-@ModuleRegister(name = "Sounds", desc = "Добавляет клиенту звуки", category = Category.UTILITY)
+@ModuleRegister(name = "Sounds", desc = "Добавляет клиенту звуки", category = Category.OTHER)
 public class SoundsModule extends Module {
     @Getter private static final SoundsModule instance = new SoundsModule();
 

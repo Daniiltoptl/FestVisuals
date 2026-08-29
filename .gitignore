@@ -52,3 +52,6 @@ site/node_modules/
 site/dist/
 site/.next/
 site/build/
+
+# Local launcher settings (paths differ per machine; config.example.json is the template)
+launcher/config.json

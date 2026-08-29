@@ -9,7 +9,6 @@ public enum Category {
     RENDER("Render"),
     HUD("HUD"),
     PLAYER("Игрок"),
-    UTILITY("Utility"),
     OTHER("Разное");
 
     private final String label;
