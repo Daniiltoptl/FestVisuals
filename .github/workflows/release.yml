@@ -11,6 +11,13 @@ on:
 permissions:
   contents: write
 
+# Two releases running at once both bump the version and push to main; the
+# second one loses the race. Let a newer push wait for the current release
+# instead of racing it.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
   release:
     if: "!contains(github.event.head_commit.message, '[skip ci]')"
@@ -47,16 +54,40 @@ jobs:
 
       - name: Commit version bump
         run: |
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add visuals/gradle.properties
           git commit -m "chore: bump version to ${{ steps.version.outputs.tag }} [skip ci]"
-          git push origin HEAD:main
+
+          # GitHub occasionally answers a push with a 500, and main may also have
+          # moved if another push landed while this run was building. Rebase and
+          # retry rather than losing the whole release to a transient failure.
+          for attempt in 1 2 3; do
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+            echo "push attempt $attempt failed, retrying"
+            sleep $((attempt * 10))
+            git pull --rebase origin main
+          done
+          echo "could not push the version bump after 3 attempts" >&2
+          exit 1
 
       - name: Tag release
         run: |
+          set -euo pipefail
           git tag ${{ steps.version.outputs.tag }}
-          git push origin ${{ steps.version.outputs.tag }}
+
+          for attempt in 1 2 3; do
+            if git push origin ${{ steps.version.outputs.tag }}; then
+              exit 0
+            fi
+            echo "tag push attempt $attempt failed, retrying"
+            sleep $((attempt * 10))
+          done
+          echo "could not push tag ${{ steps.version.outputs.tag }} after 3 attempts" >&2
+          exit 1
 
       - name: Grant execute permission for gradlew
         run: chmod +x visuals/gradlew
