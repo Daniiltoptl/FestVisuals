@@ -1,5 +1,5 @@
 // Подставьте свои owner/repo — используется для ссылки на последний релиз.
-const GITHUB_OWNER = 'YOUR_GITHUB_USERNAME';
+const GITHUB_OWNER = 'Daniiltoptl';
 const GITHUB_REPO = 'FestVisuals';
 
 async function wireDownloadButtons() {
