@@ -2,8 +2,6 @@ name: Build
 
 on:
   push:
-    branches-ignore:
-      - main
     paths:
       - 'visuals/**'
       - '.github/workflows/build.yml'
