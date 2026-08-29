@@ -3,6 +3,8 @@ package com.fest.visuals.api.module;
 import lombok.Getter;
 import com.fest.visuals.client.features.modules.hud.*;
 import com.fest.visuals.client.features.modules.render.*;
+import com.fest.visuals.client.features.modules.render.motionblur.MotionBlurModule;
+import com.fest.visuals.client.features.modules.render.particles.ParticlesModule;
 import com.fest.visuals.client.features.modules.utility.*;
 
 import java.util.ArrayList;
@@ -32,6 +34,13 @@ public class ModuleManager {
                 BlockHighlightModule.getInstance(),
                 AnimationsModule.getInstance(),
                 AmbienceModule.getInstance(),
+                JumpCircleModule.getInstance(),
+                MotionBlurModule.getInstance(),
+                ParticlesModule.getInstance(),
+                RemovalsModule.getInstance(),
+                SwingAnimationModule.getInstance(),
+                TrailsModule.getInstance(),
+                ViewModelModule.getInstance(),
 
                 // OTHER (utility modules)
                 AutoAcceptModule.getInstance(),

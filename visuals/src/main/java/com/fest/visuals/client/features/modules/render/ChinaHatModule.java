@@ -20,7 +20,7 @@ import org.joml.Matrix4f;
 
 import java.awt.Color;
 
-@ModuleRegister(name = "ChinaHat", desc = "Р В РЎв„ўР В РЎвЂР РЋРІР‚С™Р В Р’В°Р В РІвЂћвЂ“Р РЋР С“Р В РЎвЂќР В Р’В°Р РЋР РЏ Р РЋРІвЂљВ¬Р В Р’В»Р РЋР РЏР В РЎвЂ”Р В Р’В°", category = Category.RENDER)
+@ModuleRegister(name = "ChinaHat", desc = "Китайская шляпа", category = Category.RENDER)
 public class ChinaHatModule extends Module {
     @Getter private static final ChinaHatModule instance = new ChinaHatModule();
 
