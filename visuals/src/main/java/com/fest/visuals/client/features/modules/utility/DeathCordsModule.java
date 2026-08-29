@@ -28,7 +28,7 @@ public class DeathCordsModule extends Module {
             int x = (int) mc.player.getX();
             int y = (int) mc.player.getY();
             int z = (int) mc.player.getZ();
-            String dimension = mc.player.level().dimension().location().getPath();
+            String dimension = mc.player.level().dimension().identifier().getPath();
 
             String message = String.format("Смерть на %d, %d, %d (%s)", x, y, z, dimension);
 

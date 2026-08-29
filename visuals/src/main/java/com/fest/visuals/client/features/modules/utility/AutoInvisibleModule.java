@@ -2,8 +2,8 @@ package com.fest.visuals.client.features.modules.utility;
 
 import lombok.Getter;
 import net.minecraft.core.component.DataComponents;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.alchemy.PotionContents;
@@ -37,10 +37,6 @@ public class AutoInvisibleModule extends Module {
     }
 
     private int findInvisibilitySlot() {
-        // NOTE: точный API PotionContents/MobEffects может отличаться между
-        // версиями маппингов — при сборке под конкретную версию Minecraft
-        // сверьте этот метод с ./gradlew build (сборка недоступна в среде,
-        // где готовился этот патч).
         for (int i = 0; i < 9; i++) {
             ItemStack stack = mc.player.getInventory().getItem(i);
             if (stack.isEmpty()) continue;
@@ -48,10 +44,9 @@ public class AutoInvisibleModule extends Module {
             PotionContents potion = stack.get(DataComponents.POTION_CONTENTS);
             if (potion == null) continue;
 
-            boolean hasInvisibility = potion.getAllEffects().stream()
-                    .anyMatch(effect -> effect.getEffect() == BuiltInRegistries.MOB_EFFECT.wrapAsHolder(MobEffects.INVISIBILITY.value()));
-
-            if (hasInvisibility) return i;
+            for (MobEffectInstance effect : potion.getAllEffects()) {
+                if (effect.is(MobEffects.INVISIBILITY)) return i;
+            }
         }
         return -1;
     }

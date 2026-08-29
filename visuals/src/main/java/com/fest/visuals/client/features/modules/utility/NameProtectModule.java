@@ -24,7 +24,7 @@ public class NameProtectModule extends Module {
     public String apply(String text) {
         if (!isEnabled() || mc.player == null || text == null || text.isEmpty()) return text;
 
-        String realName = mc.player.getGameProfile().getName();
+        String realName = mc.player.getGameProfile().name();
         if (realName == null || realName.isEmpty()) return text;
 
         return text.replace(realName, replacement.getValue());

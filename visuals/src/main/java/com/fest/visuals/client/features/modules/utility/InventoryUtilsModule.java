@@ -29,7 +29,7 @@ public class InventoryUtilsModule extends Module {
     }
 
     private void tick() {
-        if (mc.player == null || mc.gameMode == null || mc.screen != null) return;
+        if (mc.player == null || mc.gameMode == null || mc.gui.screen() != null) return;
         if (cooldown-- > 0) return;
 
         for (int hotbarIndex = 0; hotbarIndex < 9; hotbarIndex++) {
