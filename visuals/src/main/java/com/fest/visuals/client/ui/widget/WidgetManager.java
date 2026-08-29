@@ -1,0 +1,60 @@
+package com.fest.visuals.client.ui.widget;
+
+import lombok.Getter;
+import com.fest.visuals.api.event.Listener;
+import com.fest.visuals.api.event.events.render.Render2DEvent;
+import com.fest.visuals.client.ui.widget.overlay.*;
+
+import java.util.ArrayList;
+import java.util.List;
+
+@Getter
+public class WidgetManager {
+    @Getter private final static WidgetManager instance = new WidgetManager();
+
+    private final List<Widget> widgets = new ArrayList<>();
+
+    public void load() {
+        register(
+                new ArmorWidget(),
+                new KeybindsWidget(),
+                new PotionsWidget(),
+                new StaffsWidget(),
+                new CooldownsWidget(),
+
+                new TargetInfoWidget(),
+                new DynamicIslandWidget(),
+                new ScoreboardWidget(),
+                new InventoryWidget(),
+
+                new FPSWidget(),
+                new BPSWidget(),
+                new XYZWidget()
+        );
+
+
+        Render2DEvent.getInstance().subscribe(new Listener<>(event -> {
+            for (Widget widget : widgets) {
+                if (widget.isEnabled()) widget.render(event);
+            }
+        }));
+    }
+
+    public void register(Widget... widgets) {
+        this.widgets.addAll(List.of(widgets));
+    }
+
+    /** Routed from MixinMouse while a screen is open, so widget controls stay clickable. */
+    public void onMouseClick(double mouseX, double mouseY, int button) {
+        for (Widget widget : widgets) {
+            if (widget.isEnabled()) widget.onMouseClick(mouseX, mouseY, button);
+        }
+    }
+
+    public Widget byName(String name) {
+        for (Widget w : widgets) {
+            if (w.getName().equalsIgnoreCase(name)) return w;
+        }
+        return null;
+    }
+}

@@ -1,0 +1,122 @@
+plugins {
+	id 'net.fabricmc.fabric-loom' version "${loom_version}"
+	id 'maven-publish'
+}
+
+version = project.mod_version
+group = project.maven_group
+
+base {
+	archivesName = project.archives_base_name
+}
+
+loom {
+	accessWidenerPath = file("src/main/resources/festvisuals.accesswidener")
+
+	runs {
+		client2 {
+			client()
+			name = "Minecraft Client 2"
+			runDir = "run2"
+			ideConfigGenerated = true
+		}
+	}
+
+	runs.configureEach {
+		vmArgs '--enable-native-access=ALL-UNNAMED',
+				'--sun-misc-unsafe-memory-access=allow',
+				'-Djoml.nounsafe=true'
+	}
+}
+
+repositories {
+	mavenCentral()
+	maven {
+		name = "FirstDark"
+		url = uri("https://maven.firstdark.dev/releases")
+	}
+	maven {
+		name = "Jitpack"
+		url = uri("https://jitpack.io")
+	}
+}
+
+configurations {
+	bundled {
+		canBeConsumed = false
+		canBeResolved = true
+	}
+	implementation.extendsFrom bundled
+}
+
+dependencies {
+	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+
+	compileOnly "org.projectlombok:lombok:${project.lombok_version}"
+	annotationProcessor "org.projectlombok:lombok:${project.lombok_version}"
+
+	bundled "ai.catboost:catboost-common:${project.ai_version}"
+	bundled "ai.catboost:catboost-prediction:${project.ai_version}"
+	bundled "ai.djl:api:${project.djl_version}"
+	bundled "ai.djl.pytorch:pytorch-engine:${project.djl_version}"
+	bundled "ai.djl.pytorch:pytorch-jni:${project.pytorch_native_version}-${project.djl_version}"
+	bundled "ai.djl.pytorch:pytorch-native-cpu:${project.pytorch_native_version}:win-x86_64"
+	bundled "com.github.donyka:discord-rpc:${project.drpc_version}"
+
+	implementation "org.json:json:${project.json_version}"
+}
+
+processResources {
+	inputs.property "version", project.version
+
+	filesMatching("fabric.mod.json") {
+		expand "version": inputs.properties.version
+	}
+}
+
+tasks.withType(JavaCompile).configureEach {
+	it.options.encoding = "UTF-8"
+	it.options.release = 25
+}
+
+tasks.named('test', Test) {
+	failOnNoDiscoveredTests = false
+}
+
+java {
+	withSourcesJar()
+	sourceCompatibility = JavaVersion.VERSION_25
+	targetCompatibility = JavaVersion.VERSION_25
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(25)
+	}
+}
+
+jar {
+	inputs.property "archivesName", project.base.archivesName
+
+	from {
+		configurations.bundled.collect { it.isDirectory() ? it : zipTree(it) }
+	}
+	duplicatesStrategy(DuplicatesStrategy.EXCLUDE)
+
+	from("LICENSE") {
+		rename { "${it}_${inputs.properties.archivesName}" }
+	}
+}
+
+publishing {
+	publications {
+		create("mavenJava", MavenPublication) {
+			artifactId = project.archives_base_name
+			from components.java
+		}
+	}
+}
+
+
+
+
+
