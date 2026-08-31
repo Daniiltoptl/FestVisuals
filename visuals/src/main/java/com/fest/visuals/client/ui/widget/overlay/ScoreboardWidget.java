@@ -7,9 +7,7 @@ import java.util.List;
 
 import com.fest.visuals.api.utils.color.ColorUtil;
 import com.fest.visuals.api.utils.color.UIColors;
-import com.fest.visuals.api.utils.render.McText;
 import com.fest.visuals.api.utils.render.RenderUtil;
-import com.fest.visuals.api.utils.render.pipeline.FestRenderer;
 import com.fest.visuals.client.features.modules.hud.ScoreboardHudModule;
 
 import java.awt.Color;
@@ -81,12 +79,12 @@ public class ScoreboardWidget extends Widget {
         boolean showScores = cfg.numbers.getValue();
 
         // Width follows the widest line, so long team names are not clipped.
-        float width = McText.getWidth(title, titleSize);
+        float width = getMediumFont().getWidth(title, titleSize);
         for (PlayerScoreEntry entry : rows) {
             String name = displayName(scoreboard, entry);
-            float line = McText.getWidth(name, fontSize);
+            float line = getMediumFont().getWidth(name, fontSize);
             if (showScores) {
-                line += getGap() * 3f + McText.getWidth(String.valueOf(entry.value()), fontSize);
+                line += getGap() * 3f + getMediumFont().getWidth(String.valueOf(entry.value()), fontSize);
             }
             width = Math.max(width, line);
         }
@@ -102,16 +100,11 @@ public class ScoreboardWidget extends Widget {
         getDraggable().setWidth(width);
         getDraggable().setHeight(height);
 
-        // Vanilla text is drawn by the GUI pass, so the panel behind it goes on the backdrop
-        // queue; drawn normally it would land on top of its own rows.
         if (cfg.background.getValue()) {
-            float panelWidth = width;
-            float panelHeight = height;
-            FestRenderer.withBackdrop(() -> RenderUtil.BLUR_RECT.draw(matrixStack, x, y,
-                    panelWidth, panelHeight, getGap() * 2f, UIColors.widgetBlur()));
+            RenderUtil.BLUR_RECT.draw(matrixStack, x, y, width, height, getGap() * 2f, UIColors.widgetBlur());
         }
 
-        McText.drawCenteredText(matrixStack, title, x + width / 2f,
+        getMediumFont().drawCenteredText(matrixStack, title, x + width / 2f,
                 y + (headerHeight - titleSize) / 2f, titleSize, UIColors.textColor());
 
         Color scoreColor = cfg.vanillaNumbers.getValue()
@@ -121,12 +114,12 @@ public class ScoreboardWidget extends Widget {
         float rowY = y + headerHeight;
         for (PlayerScoreEntry entry : rows) {
             String name = displayName(scoreboard, entry);
-            McText.drawText(matrixStack, name, x + pad, rowY, fontSize, UIColors.textColor());
+            getMediumFont().drawText(matrixStack, name, x + pad, rowY, fontSize, UIColors.textColor());
 
             if (showScores) {
                 String score = String.valueOf(entry.value());
-                float scoreWidth = McText.getWidth(score, fontSize);
-                McText.drawText(matrixStack, score, x + width - pad - scoreWidth, rowY, fontSize, scoreColor);
+                float scoreWidth = getMediumFont().getWidth(score, fontSize);
+                getMediumFont().drawText(matrixStack, score, x + width - pad - scoreWidth, rowY, fontSize, scoreColor);
             }
 
             rowY += fontSize + rowGap;

@@ -18,6 +18,7 @@ import com.fest.visuals.api.utils.render.ScissorUtil;
 import com.fest.visuals.api.utils.render.fonts.Fonts;
 import com.fest.visuals.client.ui.clickgui.module.ModuleComponent;
 import com.fest.visuals.client.ui.clickgui.module.SettingComponent;
+import com.fest.visuals.client.ui.clickgui.module.settings.CanvasComponent;
 import com.fest.visuals.client.ui.clickgui.module.settings.StringComponent;
 
 /**
@@ -78,7 +79,7 @@ public class ClickGuiSettingsPanel {
         float open = (float) openAnimation.getValue();
         if (open <= 0.01f) return;
 
-        float width = ClickGuiLayout.panelWidth();
+        float width = cardWidth();
         float measured = measure();
         this.height = Math.min(measured, ClickGuiLayout.panelMaxHeight());
 
@@ -220,12 +221,23 @@ public class ClickGuiSettingsPanel {
         float screenW = Minecraft.getInstance().getWindow().getGuiScaledWidth();
         float screenH = Minecraft.getInstance().getWindow().getGuiScaledHeight();
         float margin = ClickGuiLayout.scaled(4f);
-        x = Mth.clamp(x, margin - ClickGuiLayout.panelWidth() * 0.5f, screenW - ClickGuiLayout.panelWidth() * 0.5f);
+        x = Mth.clamp(x, margin - cardWidth() * 0.5f, screenW - cardWidth() * 0.5f);
         y = Mth.clamp(y, margin, Math.max(margin, screenH - ClickGuiLayout.scaled(20f)));
     }
 
+    /**
+     * Cards are one width, except when they hold a paint grid: seventeen cells across the normal
+     * card leaves each one a few pixels wide, which is not something you can draw on.
+     */
+    private float cardWidth() {
+        for (SettingComponent setting : component.getSettings()) {
+            if (setting instanceof CanvasComponent) return ClickGuiLayout.panelWidth() * 1.7f;
+        }
+        return ClickGuiLayout.panelWidth();
+    }
+
     public boolean hovered(double mouseX, double mouseY) {
-        return drawn && MouseUtil.isHovered(mapX(mouseX), mapY(mouseY), x, y, ClickGuiLayout.panelWidth(), height);
+        return drawn && MouseUtil.isHovered(mapX(mouseX), mapY(mouseY), x, y, cardWidth(), height);
     }
 
     private float closeInset() {
@@ -239,7 +251,7 @@ public class ClickGuiSettingsPanel {
     /** Centred on the drawn cross, and generous вЂ” a 7px glyph is a hard thing to hit. */
     private boolean hoveredClose(double mouseX, double mouseY) {
         float size = closeSize();
-        float cx = x + ClickGuiLayout.panelWidth() - closeInset();
+        float cx = x + cardWidth() - closeInset();
         float cy = y + ClickGuiLayout.scaled(24f) / 2f;
         return MouseUtil.isHovered(mouseX, mouseY, cx - size / 2f, cy - size / 2f, size, size);
     }
@@ -258,7 +270,7 @@ public class ClickGuiSettingsPanel {
         // Left-drag by the title bar, right-drag from anywhere вЂ” settings rows fill most of a
         // card, so the header alone is a thin target once a module has many of them.
         float headerH = ClickGuiLayout.scaled(24f);
-        boolean onHeader = MouseUtil.isHovered(localX, localY, x, y, ClickGuiLayout.panelWidth(), headerH);
+        boolean onHeader = MouseUtil.isHovered(localX, localY, x, y, cardWidth(), headerH);
         if ((button == 0 && onHeader) || button == 1) {
             dragging = true;
             dragX = (float) localX - x;

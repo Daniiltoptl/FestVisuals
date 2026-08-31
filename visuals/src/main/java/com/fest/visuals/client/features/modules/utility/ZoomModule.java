@@ -98,9 +98,22 @@ public class ZoomModule extends Module {
         float target = originalFov / smoothFactor;
         int fov = Math.max(1, Math.round(Mth.lerp(progress, originalFov, target)));
 
-        // Writing the same value every frame is what let another zoom mod win the tug of war;
-        // only touch the option when it actually has to change.
-        if (mc.options.fov().get() != fov) mc.options.fov().set(fov);
+        if (mc.options.fov().get() != fov) {
+            mc.options.fov().set(fov);
+
+            // The option validates what it is given and keeps the old value when the number is
+            // below its floor. Detect that instead of writing into the void every frame, and pin
+            // the magnification to whatever the option actually reached — scrolling past it used
+            // to look like the zoom sliding back out.
+            int applied = mc.options.fov().get();
+            if (applied > fov && progress > 0.9f) {
+                float reachable = originalFov / (float) Math.max(1, applied);
+                if (reachable < factor.getValue()) {
+                    factor.setValue(Math.max(factor.getMin(), reachable));
+                    factorAnimation.setValue(reachable);
+                }
+            }
+        }
 
         if (slowSensitivity.getValue()) {
             double eased = originalSensitivity * (1.0 - 0.7 * progress);

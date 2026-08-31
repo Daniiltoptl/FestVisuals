@@ -25,15 +25,17 @@ public class AnimationsModule extends Module {
     public final BooleanSetting chat = new BooleanSetting("Чат").value(true);
     public final BooleanSetting tabList = new BooleanSetting("Таб-лист").value(true);
 
+    public final BooleanSetting typewriter = new BooleanSetting("Печатающийся чат").value(true);
+
     public final ModeSetting style = new ModeSetting("Стиль")
-            .value("Масштаб").values("Масштаб", "Сдвиг", "Вместе");
+            .value("Вместе").values("Масштаб", "Сдвиг", "Вместе", "Кино");
     public final ModeSetting curve = new ModeSetting("Кривая")
             .value("Плавная").values("Плавная", "С отскоком", "Резкая");
     public final SliderSetting speed = new SliderSetting("Длительность (мс)").value(320f).range(80f, 1200f).step(20f);
     public final SliderSetting intensity = new SliderSetting("Сила").value(100f).range(20f, 200f).step(5f);
 
     public AnimationsModule() {
-        addSettings(screens, containers, chat, tabList, style, curve, speed, intensity);
+        addSettings(screens, containers, chat, tabList, typewriter, style, curve, speed, intensity);
     }
 
     public long duration() {
@@ -63,6 +65,11 @@ public class AnimationsModule extends Module {
 
     public boolean slides() {
         return !style.is("Масштаб");
+    }
+
+    /** The cinematic style adds a slight tilt that unwinds as the screen settles. */
+    public boolean tilts() {
+        return style.is("Кино");
     }
 
     @Override

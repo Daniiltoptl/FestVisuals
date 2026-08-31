@@ -88,10 +88,13 @@ public class MixinScreen {
             matrices.translate(0f, chat ? distance : -distance);
         }
 
-        if (module.scales()) {
-            float scale = 1f - (1f - progress) * 0.45f * strength;
+        if (module.scales() || module.tilts()) {
+            float scale = module.scales() ? 1f - (1f - progress) * 0.45f * strength : 1f;
+            float tilt = module.tilts() ? (1f - progress) * 0.16f * strength : 0f;
+
             matrices.translate(centreX, centreY);
             matrices.scale(scale, scale);
+            if (tilt != 0f) matrices.rotate(tilt);
             matrices.translate(-centreX, -centreY);
         }
     }

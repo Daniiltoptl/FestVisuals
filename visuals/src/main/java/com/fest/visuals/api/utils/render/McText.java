@@ -8,6 +8,7 @@ import lombok.Setter;
 import lombok.experimental.UtilityClass;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import com.fest.visuals.api.utils.render.fonts.Fonts;
 import org.joml.Matrix3x2fStack;
 
 /**
@@ -31,6 +32,8 @@ public class McText {
 
     public float getWidth(String text, float size) {
         if (text == null || text.isEmpty()) return 0f;
+        if (context == null) return Fonts.PS_MEDIUM.getWidth(text, size);
+
         return Minecraft.getInstance().font.width(text) * (size / BASE_HEIGHT);
     }
 
@@ -39,7 +42,14 @@ public class McText {
     }
 
     public void drawText(PoseStack matrixStack, String text, float x, float y, float size, Color color) {
-        if (context == null || text == null || text.isEmpty()) return;
+        if (text == null || text.isEmpty()) return;
+
+        // Without an extractor there is no GUI pass to draw into. Fall back to the client font
+        // rather than dropping the text, which is how a missing extractor used to look.
+        if (context == null) {
+            Fonts.PS_MEDIUM.drawText(matrixStack, text, x, y, size, color);
+            return;
+        }
 
         Minecraft mc = Minecraft.getInstance();
         float scale = size / BASE_HEIGHT;
