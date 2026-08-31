@@ -121,8 +121,8 @@ public abstract class MixinTitleScreenLinks extends Screen {
         // Follows the cards' real height, which the squeeze above may have reduced.
         int pillsTop = cardsTop + cardHeight + Math.round(MainMenuTheme.d(26f));
 
-        int settingsWidth = festvisuals$pillWidth(options.getMessage().getString());
-        int packsWidth = festvisuals$pillWidth(packs.getMessage().getString());
+        int settingsWidth = festvisuals$pillWidth(MainMenuTheme.strip(options.getMessage().getString()));
+        int packsWidth = festvisuals$pillWidth(MainMenuTheme.strip(packs.getMessage().getString()));
         int rowLeft = centreX - (settingsWidth + pillGap + packsWidth) / 2;
 
         options.setRectangle(settingsWidth, pillHeight, rowLeft, pillsTop);

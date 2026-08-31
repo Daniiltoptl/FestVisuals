@@ -79,53 +79,69 @@ public class MixinLevelRenderer {
                     : new java.awt.Color(255, 120, 0, 200);
 
             VoxelShape shape = outline.shape();
-            RenderUtil.WORLD.beginFrame(collector); RenderUtil.WORLD.startRender(poseStack);
-            VertexConsumer buffer = RenderUtil.WORLD.buffer(com.fest.visuals.api.utils.render.pipeline.FestLayers.DEBUG_LINES);
-            Matrix4f matrix = poseStack.last().pose(); float width = module.lineWidth.getValue(); buffer.setLineWidth(width);
+            RenderUtil.WORLD.beginFrame(collector);
+            RenderUtil.WORLD.startRender(poseStack);
 
-            // Line width is a hint the driver is free to clamp to one pixel, so thickness is
-            // built by drawing the outline several times, each pass a hair further out.
-            int passes = Math.max(1, Math.round(width));
+            VertexConsumer buffer = RenderUtil.WORLD.buffer(com.fest.visuals.api.utils.render.pipeline.FestLayers.QUADS);
+            Matrix4f matrix = poseStack.last().pose();
+
+            // Edges are solid boxes rather than GL lines. Line width is a hint a driver may clamp
+            // to one pixel, which left the slider doing nothing, and lines thin out with distance
+            // unevenly; a box has the same thickness on every edge.
+            float half = Math.max(0.2f, module.lineWidth.getValue()) * 0.004f;
+            int argb = c.getRGB();
 
             for (AABB box : shape.toAabbs()) {
-              for (int pass = 0; pass < passes; pass++) {
-                float grow = pass * 0.0025f;
-                float minX = (float)(x + box.minX) - grow;
-                float minY = (float)(y + box.minY) - grow;
-                float minZ = (float)(z + box.minZ) - grow;
-                float maxX = (float)(x + box.maxX) + grow;
-                float maxY = (float)(y + box.maxY) + grow;
-                float maxZ = (float)(z + box.maxZ) + grow;
+                float minX = (float) (x + box.minX);
+                float minY = (float) (y + box.minY);
+                float minZ = (float) (z + box.minZ);
+                float maxX = (float) (x + box.maxX);
+                float maxY = (float) (y + box.maxY);
+                float maxZ = (float) (z + box.maxZ);
 
-                buffer.addVertex(matrix, minX, minY, minZ).setColor(c.getRGB()).setNormal(poseStack.last(), 1, 0, 0);
-                buffer.addVertex(matrix, maxX, minY, minZ).setColor(c.getRGB()).setNormal(poseStack.last(), 1, 0, 0);
-                buffer.addVertex(matrix, maxX, minY, minZ).setColor(c.getRGB()).setNormal(poseStack.last(), 0, 1, 0);
-                buffer.addVertex(matrix, maxX, maxY, minZ).setColor(c.getRGB()).setNormal(poseStack.last(), 0, 1, 0);
-                buffer.addVertex(matrix, maxX, maxY, minZ).setColor(c.getRGB()).setNormal(poseStack.last(), -1, 0, 0);
-                buffer.addVertex(matrix, minX, maxY, minZ).setColor(c.getRGB()).setNormal(poseStack.last(), -1, 0, 0);
-                buffer.addVertex(matrix, minX, maxY, minZ).setColor(c.getRGB()).setNormal(poseStack.last(), 0, -1, 0);
-                buffer.addVertex(matrix, minX, minY, minZ).setColor(c.getRGB()).setNormal(poseStack.last(), 0, -1, 0);
-
-                buffer.addVertex(matrix, minX, minY, maxZ).setColor(c.getRGB()).setNormal(poseStack.last(), 1, 0, 0);
-                buffer.addVertex(matrix, maxX, minY, maxZ).setColor(c.getRGB()).setNormal(poseStack.last(), 1, 0, 0);
-                buffer.addVertex(matrix, maxX, minY, maxZ).setColor(c.getRGB()).setNormal(poseStack.last(), 0, 1, 0);
-                buffer.addVertex(matrix, maxX, maxY, maxZ).setColor(c.getRGB()).setNormal(poseStack.last(), 0, 1, 0);
-                buffer.addVertex(matrix, maxX, maxY, maxZ).setColor(c.getRGB()).setNormal(poseStack.last(), -1, 0, 0);
-                buffer.addVertex(matrix, minX, maxY, maxZ).setColor(c.getRGB()).setNormal(poseStack.last(), -1, 0, 0);
-                buffer.addVertex(matrix, minX, maxY, maxZ).setColor(c.getRGB()).setNormal(poseStack.last(), 0, -1, 0);
-                buffer.addVertex(matrix, minX, minY, maxZ).setColor(c.getRGB()).setNormal(poseStack.last(), 0, -1, 0);
-
-                buffer.addVertex(matrix, minX, minY, minZ).setColor(c.getRGB()).setNormal(poseStack.last(), 0, 0, 1);
-                buffer.addVertex(matrix, minX, minY, maxZ).setColor(c.getRGB()).setNormal(poseStack.last(), 0, 0, 1);
-                buffer.addVertex(matrix, maxX, minY, minZ).setColor(c.getRGB()).setNormal(poseStack.last(), 0, 0, 1);
-                buffer.addVertex(matrix, maxX, minY, maxZ).setColor(c.getRGB()).setNormal(poseStack.last(), 0, 0, 1);
-                buffer.addVertex(matrix, maxX, maxY, minZ).setColor(c.getRGB()).setNormal(poseStack.last(), 0, 0, 1);
-                buffer.addVertex(matrix, maxX, maxY, maxZ).setColor(c.getRGB()).setNormal(poseStack.last(), 0, 0, 1);
-                buffer.addVertex(matrix, minX, maxY, minZ).setColor(c.getRGB()).setNormal(poseStack.last(), 0, 0, 1);
-                buffer.addVertex(matrix, minX, maxY, maxZ).setColor(c.getRGB()).setNormal(poseStack.last(), 0, 0, 1);
-              }
+                for (float ey : new float[]{minY, maxY}) {
+                    for (float ez : new float[]{minZ, maxZ}) {
+                        festvisuals$bar(buffer, matrix, argb,
+                                minX - half, ey - half, ez - half, maxX + half, ey + half, ez + half);
+                    }
+                }
+                for (float ex : new float[]{minX, maxX}) {
+                    for (float ez : new float[]{minZ, maxZ}) {
+                        festvisuals$bar(buffer, matrix, argb,
+                                ex - half, minY - half, ez - half, ex + half, maxY + half, ez + half);
+                    }
+                }
+                for (float ex : new float[]{minX, maxX}) {
+                    for (float ey : new float[]{minY, maxY}) {
+                        festvisuals$bar(buffer, matrix, argb,
+                                ex - half, ey - half, minZ - half, ex + half, ey + half, maxZ + half);
+                    }
+                }
             }
+
             RenderUtil.WORLD.endRender(poseStack); RenderUtil.WORLD.finishFrame();
         }
+    }
+
+    /** One edge of the outline: an axis-aligned box emitted as six quads. */
+    @Unique
+    private void festvisuals$bar(VertexConsumer buffer, Matrix4f matrix, int color,
+                                 float x1, float y1, float z1, float x2, float y2, float z2) {
+        festvisuals$quad(buffer, matrix, color, x1, y1, z1, x1, y2, z1, x2, y2, z1, x2, y1, z1);
+        festvisuals$quad(buffer, matrix, color, x2, y1, z2, x2, y2, z2, x1, y2, z2, x1, y1, z2);
+        festvisuals$quad(buffer, matrix, color, x1, y1, z2, x1, y2, z2, x1, y2, z1, x1, y1, z1);
+        festvisuals$quad(buffer, matrix, color, x2, y1, z1, x2, y2, z1, x2, y2, z2, x2, y1, z2);
+        festvisuals$quad(buffer, matrix, color, x1, y2, z1, x1, y2, z2, x2, y2, z2, x2, y2, z1);
+        festvisuals$quad(buffer, matrix, color, x1, y1, z2, x1, y1, z1, x2, y1, z1, x2, y1, z2);
+    }
+
+    @Unique
+    private void festvisuals$quad(VertexConsumer buffer, Matrix4f matrix, int color,
+                      float ax, float ay, float az, float bx, float by, float bz,
+                      float cx, float cy, float cz, float dx, float dy, float dz) {
+        buffer.addVertex(matrix, ax, ay, az).setColor(color);
+        buffer.addVertex(matrix, bx, by, bz).setColor(color);
+        buffer.addVertex(matrix, cx, cy, cz).setColor(color);
+        buffer.addVertex(matrix, dx, dy, dz).setColor(color);
     }
 }

@@ -17,6 +17,10 @@ import com.fest.visuals.api.module.ModuleRegister;
 public class AutoInvisibleModule extends Module {
     @Getter private static final AutoInvisibleModule instance = new AutoInvisibleModule();
 
+    private boolean drinking;
+    private int returnSlot = -1;
+    private int cooldown;
+
     @Override
     public void onEvent() {
         addEvents(TickEvent.getInstance().subscribe(new Listener<>(event -> tick())));
@@ -24,16 +28,42 @@ public class AutoInvisibleModule extends Module {
 
     private void tick() {
         if (mc.player == null || mc.gameMode == null) return;
+
+        // Drinking takes 32 ticks. The slot must stay selected for all of them, so the swap back
+        // waits until the player has actually stopped using the item.
+        if (drinking) {
+            if (mc.player.isUsingItem()) return;
+
+            if (returnSlot >= 0) {
+                mc.player.getInventory().setSelectedSlot(returnSlot);
+                returnSlot = -1;
+            }
+            drinking = false;
+            cooldown = 10;
+            return;
+        }
+
+        if (cooldown-- > 0) return;
         if (mc.player.hasEffect(MobEffects.INVISIBILITY)) return;
-        if (mc.player.isUsingItem()) return;
+        if (mc.player.isUsingItem() || mc.gui.screen() != null) return;
 
         int slot = findInvisibilitySlot();
         if (slot == -1) return;
 
-        int previousSlot = mc.player.getInventory().getSelectedSlot();
+        returnSlot = mc.player.getInventory().getSelectedSlot();
         mc.player.getInventory().setSelectedSlot(slot);
         mc.gameMode.useItem(mc.player, InteractionHand.MAIN_HAND);
-        mc.player.getInventory().setSelectedSlot(previousSlot);
+        drinking = true;
+    }
+
+    @Override
+    public void onDisable() {
+        if (drinking && mc.player != null && returnSlot >= 0) {
+            mc.player.getInventory().setSelectedSlot(returnSlot);
+        }
+        drinking = false;
+        returnSlot = -1;
+        cooldown = 0;
     }
 
     private int findInvisibilitySlot() {

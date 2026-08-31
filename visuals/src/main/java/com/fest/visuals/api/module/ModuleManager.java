@@ -35,6 +35,7 @@ public class ModuleManager {
                 BlockHighlightModule.getInstance(),
                 AnimationsModule.getInstance(),
                 AmbienceModule.getInstance(),
+                CrosshairModule.getInstance(),
                 JumpCircleModule.getInstance(),
                 MotionBlurModule.getInstance(),
                 ParticlesModule.getInstance(),
@@ -58,6 +59,10 @@ public class ModuleManager {
         );
 
         modules.sort((a, b) -> a.getName().compareToIgnoreCase(b.getName()));
+
+        for (Module module : modules) {
+            if (module instanceof com.fest.visuals.client.features.modules.hud.HudModule hud) hud.syncWidget();
+        }
     }
 
     public void register(Module... modules) {

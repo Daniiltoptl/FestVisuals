@@ -14,6 +14,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import com.fest.visuals.api.event.events.render.Render2DEvent;
 import com.fest.visuals.client.features.modules.hud.PotionsHudModule;
 import com.fest.visuals.client.features.modules.hud.ScoreboardHudModule;
+import com.fest.visuals.client.features.modules.render.CrosshairModule;
 import com.fest.visuals.client.features.modules.render.RemovalsModule;
 
 @Mixin(Hud.class)
@@ -28,6 +29,13 @@ public class MixinInGameHud {
     @Inject(method = "extractEffects", at = @At("HEAD"), cancellable = true)
     private void renderStatusEffectOverlay(GuiGraphicsExtractor context, DeltaTracker tickCounter, CallbackInfo ci) {
         if (PotionsHudModule.getInstance().isEnabled()) {
+            ci.cancel();
+        }
+    }
+
+    @Inject(method = "extractCrosshair", at = @At("HEAD"), cancellable = true)
+    private void renderCrosshair(GuiGraphicsExtractor context, DeltaTracker tickCounter, CallbackInfo ci) {
+        if (CrosshairModule.getInstance().isEnabled()) {
             ci.cancel();
         }
     }

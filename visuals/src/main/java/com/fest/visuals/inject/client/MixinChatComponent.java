@@ -45,7 +45,7 @@ public class MixinChatComponent {
         matrices.pushMatrix();
         festvisuals$transformed = true;
 
-        matrices.translate((1f - progress) * -60f * module.strength(), 0f);
+        matrices.translate((1f - progress) * -120f * module.strength(), 0f);
     }
 
     @Inject(method = "extractRenderState(Lnet/minecraft/client/gui/GuiGraphicsExtractor;Lnet/minecraft/client/gui/Font;IIILnet/minecraft/client/gui/components/ChatComponent;Z)V", at = @At("RETURN"))

@@ -24,11 +24,11 @@ import java.awt.Color;
 public class ChinaHatModule extends Module {
     @Getter private static final ChinaHatModule instance = new ChinaHatModule();
 
-    private final BooleanSetting onSelf = new BooleanSetting("Р В РЎСљР В Р’В° Р РЋР С“Р В Р’ВµР В Р’В±Р В Р’Вµ").value(true);
-    private final BooleanSetting onPlayers = new BooleanSetting("Р В РЎСљР В Р’В° Р В РЎвЂР В РЎвЂ“Р РЋР вЂљР В РЎвЂўР В РЎвЂќР В Р’В°Р РЋРІР‚В¦").value(false);
-    private final SliderSetting height = new SliderSetting("Р В РІР‚в„ўР РЋРІР‚в„–Р РЋР С“Р В РЎвЂўР РЋРІР‚С™Р В Р’В°").value(0.3f).range(0.1f, 1.0f).step(0.05f);
-    private final SliderSetting radius = new SliderSetting("Р В Р’В Р В Р’В°Р В РўвЂР В РЎвЂР РЋРЎвЂњР РЋР С“").value(0.8f).range(0.3f, 2.0f).step(0.05f);
-    private final ColorSetting color = new ColorSetting("Р В Р’В¦Р В Р вЂ Р В Р’ВµР РЋРІР‚С™").value(new Color(255, 120, 0, 120));
+    private final BooleanSetting onSelf = new BooleanSetting("На себе").value(true);
+    private final BooleanSetting onPlayers = new BooleanSetting("На игроках").value(false);
+    private final SliderSetting height = new SliderSetting("Высота").value(0.3f).range(0.1f, 1.0f).step(0.05f);
+    private final SliderSetting radius = new SliderSetting("Радиус").value(0.8f).range(0.3f, 2.0f).step(0.05f);
+    private final ColorSetting color = new ColorSetting("Цвет").value(new Color(255, 120, 0, 120));
 
     public ChinaHatModule() {
         addSettings(onSelf, onPlayers, height, radius, color);
@@ -37,7 +37,11 @@ public class ChinaHatModule extends Module {
     @Override
     public void onEvent() {
         EventListener renderEvent = Render3DEvent.getInstance().subscribe(new Listener<>(event -> {
+            if (mc.level == null || mc.player == null) return;
+
             PoseStack matrixStack = event.matrixStack();
+            // Without a collector every submitted vertex is dropped on the floor.
+            RenderUtil.WORLD.beginFrame(event.collector());
             RenderUtil.WORLD.startRender(matrixStack);
 
             for (AbstractClientPlayer player : mc.level.players()) {
@@ -50,6 +54,7 @@ public class ChinaHatModule extends Module {
             }
 
             RenderUtil.WORLD.endRender(matrixStack);
+            RenderUtil.WORLD.finishFrame();
         }));
 
         addEvents(renderEvent);

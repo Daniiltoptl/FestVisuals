@@ -210,7 +210,7 @@ public class DynamicIslandWidget extends Widget {
     }
 
     private String clockText() { return LocalTime.now().format(TIME_FMT); }
-    private String pingText() { return ping() + " РјСЃ"; }
+    private String pingText() { return ping() + " мс"; }
 
     private void renderStatusBar(PoseStack matrixStack, float x, float y, float pillH, float a) {
         DynamicIslandModule cfg = DynamicIslandModule.getInstance();
@@ -548,7 +548,7 @@ public class DynamicIslandWidget extends Widget {
             }
             int a = (int) (alpha * 255f);
 
-            String state = showState() ? (t.on ? "РІРєР»" : "РІС‹РєР»") : "";
+            String state = showState() ? (t.on ? "вкл" : "выкл") : "";
             float labelW = getMediumFont().getWidth(t.name, fontSize);
             float stateW = state.isEmpty() ? 0f : getMediumFont().getWidth(state, fontSize);
             float rowW = pad + iconSize + gap + labelW + (stateW > 0 ? gap + stateW : 0) + pad;

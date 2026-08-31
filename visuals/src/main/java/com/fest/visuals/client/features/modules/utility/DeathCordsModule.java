@@ -32,11 +32,17 @@ public class DeathCordsModule extends Module {
 
             String message = String.format("Смерть на %d, %d, %d (%s)", x, y, z, dimension);
 
-            if (UtilityConfig.getInstance().isDeathCordsPublic()) {
-                mc.player.connection.sendChat(message);
-            } else {
-                TextUtil.sendMessage(message);
-            }
+            // Packets arrive on the netty thread. Printing to chat bakes glyphs, which asserts
+            // on the render thread, so hand the work to the client thread.
+            mc.execute(() -> {
+                if (mc.player == null) return;
+
+                if (UtilityConfig.getInstance().isDeathCordsPublic()) {
+                    mc.player.connection.sendChat(message);
+                } else {
+                    TextUtil.sendMessage(message);
+                }
+            });
         })));
     }
 }

@@ -44,11 +44,11 @@ public class MixinPlayerTabOverlay {
         festvisuals$transformed = true;
 
         if (module.slides()) {
-            matrices.translate(0f, (1f - progress) * -40f * strength);
+            matrices.translate(0f, (1f - progress) * -90f * strength);
         }
         if (module.scales()) {
             float centreX = mc.getWindow().getGuiScaledWidth() / 2f;
-            float scale = 1f - (1f - progress) * 0.15f * strength;
+            float scale = 1f - (1f - progress) * 0.3f * strength;
             matrices.translate(centreX, 0f);
             matrices.scale(scale, scale);
             matrices.translate(-centreX, 0f);

@@ -264,7 +264,9 @@ public class MainMenuTheme {
         String glyph = (role == Role.PILL_SETTINGS ? Icons.OPTIONS : Icons.FOLDER).getLetter();
         float fontSize = d(13f);
         float glyphSize = d(14f);
-        String label = widget.getMessage().getString();
+        // Some language packs ship the label with a trailing reset code; drawn through a font
+        // that knows nothing about formatting it would show up as literal "§r".
+        String label = strip(widget.getMessage().getString());
 
         float glyphWidth = Fonts.ICONS.getWidth(glyph, glyphSize);
         float labelWidth = Fonts.PS_BOLD.getWidth(label, fontSize);
@@ -373,5 +375,10 @@ public class MainMenuTheme {
         RenderUtil.RECT.draw(matrixStack, x + round, y + h - t, w - round * 2f, t, 0f, color);
         RenderUtil.RECT.draw(matrixStack, x, y + round, t, h - round * 2f, 0f, color);
         RenderUtil.RECT.draw(matrixStack, x + w - t, y + round, t, h - round * 2f, 0f, color);
+    }
+
+    /** Drops Minecraft formatting codes from a label. */
+    public String strip(String text) {
+        return text == null ? "" : text.replaceAll("§.", "");
     }
 }

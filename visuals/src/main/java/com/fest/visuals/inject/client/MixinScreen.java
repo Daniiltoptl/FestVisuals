@@ -84,12 +84,12 @@ public class MixinScreen {
         if (module.slides()) {
             // Chat lives at the bottom edge, so it rises into place; everything else drops in.
             boolean chat = self instanceof ChatScreen;
-            float distance = (1f - progress) * 26f * strength;
+            float distance = (1f - progress) * 70f * strength;
             matrices.translate(0f, chat ? distance : -distance);
         }
 
         if (module.scales()) {
-            float scale = 1f - (1f - progress) * 0.18f * strength;
+            float scale = 1f - (1f - progress) * 0.45f * strength;
             matrices.translate(centreX, centreY);
             matrices.scale(scale, scale);
             matrices.translate(-centreX, -centreY);

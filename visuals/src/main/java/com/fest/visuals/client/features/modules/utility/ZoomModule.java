@@ -28,13 +28,14 @@ import com.fest.visuals.api.utils.animation.Easing;
 public class ZoomModule extends Module {
     @Getter private static final ZoomModule instance = new ZoomModule();
 
-    public final BindSetting key = new BindSetting("Клавиша").value(org.lwjgl.glfw.GLFW.GLFW_KEY_C);
+    public final BindSetting key = new BindSetting("Клавиша").value(org.lwjgl.glfw.GLFW.GLFW_KEY_V);
     public final SliderSetting factor = new SliderSetting("Кратность").value(4f).range(1.5f, 15f).step(0.5f);
-    public final SliderSetting smoothness = new SliderSetting("Плавность").value(220f).range(0f, 600f).step(20f);
+    public final SliderSetting smoothness = new SliderSetting("Плавность").value(340f).range(60f, 900f).step(20f);
     public final BooleanSetting scroll = new BooleanSetting("Колёсиком").value(true);
     public final BooleanSetting slowSensitivity = new BooleanSetting("Замедлять мышь").value(true);
 
     private final AnimationUtil zoomAnimation = new AnimationUtil();
+    private final AnimationUtil factorAnimation = new AnimationUtil();
 
     private Integer originalFov;
     private Double originalSensitivity;
@@ -71,14 +72,16 @@ public class ZoomModule extends Module {
         if (wanted && !zooming) {
             originalFov = mc.options.fov().get();
             originalSensitivity = mc.options.sensitivity().get();
+            factorAnimation.setValue(factor.getValue());
             zooming = true;
         }
 
         if (!zooming) return;
 
+        long duration = Math.max(1L, (long) smoothness.getValue().floatValue());
+
         zoomAnimation.update();
-        long duration = (long) smoothness.getValue().floatValue();
-        zoomAnimation.run(wanted ? 1.0 : 0.0, Math.max(1L, duration), wanted ? Easing.EXPO_OUT : Easing.CUBIC_OUT);
+        zoomAnimation.run(wanted ? 1.0 : 0.0, duration, wanted ? Easing.EXPO_OUT : Easing.CUBIC_OUT);
         float progress = (float) zoomAnimation.getValue();
 
         if (!wanted && progress <= 0.01f) {
@@ -86,10 +89,18 @@ public class ZoomModule extends Module {
             return;
         }
 
-        // Interpolate towards the zoomed field of view instead of snapping to it.
-        float target = originalFov / factor.getValue();
+        // The magnification eases too, so a scroll glides to the new zoom instead of snapping and
+        // fighting the in/out animation for the same frame.
+        factorAnimation.update();
+        factorAnimation.run(factor.getValue(), duration / 2L + 1L, Easing.EXPO_OUT);
+        float smoothFactor = Math.max(1f, (float) factorAnimation.getValue());
+
+        float target = originalFov / smoothFactor;
         int fov = Math.max(1, Math.round(Mth.lerp(progress, originalFov, target)));
-        mc.options.fov().set(fov);
+
+        // Writing the same value every frame is what let another zoom mod win the tug of war;
+        // only touch the option when it actually has to change.
+        if (mc.options.fov().get() != fov) mc.options.fov().set(fov);
 
         if (slowSensitivity.getValue()) {
             double eased = originalSensitivity * (1.0 - 0.7 * progress);

@@ -20,6 +20,16 @@ public abstract class HudModule extends Module {
         return WidgetManager.getInstance().byName(widgetName());
     }
 
+    /**
+     * Pushes the module state onto the widget. Called after both managers have loaded: a module
+     * constructed before {@code WidgetManager} finished would otherwise look up a widget that did
+     * not exist yet and silently never enable it.
+     */
+    public void syncWidget() {
+        Widget w = widget();
+        if (w != null) w.setEnabled(isEnabled());
+    }
+
     @Override
     public void onEnable() {
         Widget w = widget();
