@@ -1,6 +1,8 @@
 package com.fest.visuals.client.features.modules.utility;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import lombok.Getter;
+import org.lwjgl.glfw.GLFW;
 
 import com.fest.visuals.api.module.Category;
 import com.fest.visuals.api.module.Module;
@@ -29,14 +31,21 @@ public class FastScrollerModule extends Module {
         addSettings(modifier, action, rightButton);
     }
 
-    /** True when the configured modifier is currently held (or none is required). */
+    /**
+     * True when the configured modifier is held, or when none is required. Queried straight from
+     * the window: Screen no longer exposes the hasShiftDown/hasControlDown helpers.
+     */
     public boolean modifierHeld() {
         return switch (modifier.getValue()) {
-            case "Ctrl" -> net.minecraft.client.gui.screens.Screen.hasControlDown();
-            case "Alt" -> net.minecraft.client.gui.screens.Screen.hasAltDown();
+            case "Ctrl" -> down(GLFW.GLFW_KEY_LEFT_CONTROL) || down(GLFW.GLFW_KEY_RIGHT_CONTROL);
+            case "Alt" -> down(GLFW.GLFW_KEY_LEFT_ALT) || down(GLFW.GLFW_KEY_RIGHT_ALT);
             case "Без модификатора" -> true;
-            default -> net.minecraft.client.gui.screens.Screen.hasShiftDown();
+            default -> down(GLFW.GLFW_KEY_LEFT_SHIFT) || down(GLFW.GLFW_KEY_RIGHT_SHIFT);
         };
+    }
+
+    private boolean down(int key) {
+        return InputConstants.isKeyDown(mc.getWindow(), key);
     }
 
     public boolean dropping() {
