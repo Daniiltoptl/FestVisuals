@@ -16,7 +16,7 @@ public class BlockHighlightModule extends Module {
 
     public final ModeSetting mode = new ModeSetting("Режим").value("Клиент").values("Клиент", "Кастомный");
     public final ColorSetting color = new ColorSetting("Цвет").value(new Color(255, 120, 0, 200)).setVisible(() -> mode.getValue().equals("Кастомный"));
-    public final SliderSetting lineWidth = new SliderSetting("Ширина").value(3f).range(1f, 5f).step(0.5f).setVisible(() -> mode.getValue().equals("Кастомный"));
+    public final SliderSetting lineWidth = new SliderSetting("Ширина").value(3f).range(1f, 8f).step(1f);
 
     public BlockHighlightModule() {
         addSettings(mode, color, lineWidth);

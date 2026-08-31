@@ -1,101 +1,120 @@
 package com.fest.visuals.inject.client;
 
-import com.fest.visuals.api.utils.animation.AnimationUtil;
-import com.fest.visuals.api.utils.animation.Easing;
-import com.fest.visuals.client.features.modules.render.AnimationsModule;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import org.joml.Matrix3x2fStack;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import com.fest.visuals.api.utils.animation.AnimationUtil;
+import com.fest.visuals.client.features.modules.render.AnimationsModule;
+
+/**
+ * Opens and closes every screen with an animation instead of a hard cut.
+ *
+ * <p>Closing is the awkward half: vanilla tears the screen down the moment {@code onClose} runs,
+ * so the call is cancelled once, the screen keeps rendering while it shrinks away, and only then
+ * is the real close allowed through.
+ *
+ * <p>The transform is applied to the GUI matrix around the screen centre, which covers the
+ * background, the widgets and the container contents in one go.
+ */
 @Mixin(Screen.class)
 public class MixinScreen {
-    @Unique private AnimationUtil screenAnimation = new AnimationUtil();
-    @Unique private boolean isFirstRender = true;
-    @Unique private boolean isClosing = false;
-    @Unique private boolean doClose = false;
+    @Unique private final AnimationUtil festvisuals$animation = new AnimationUtil();
+    @Unique private boolean festvisuals$fresh = true;
+    @Unique private boolean festvisuals$closing = false;
+    @Unique private boolean festvisuals$allowClose = false;
+    @Unique private boolean festvisuals$transformed = false;
 
     @Inject(method = "init(Lnet/minecraft/client/Minecraft;II)V", at = @At("HEAD"))
-    private void onInit(CallbackInfo ci) {
-        isFirstRender = true;
-        isClosing = false;
-        doClose = false;
+    private void festvisuals$onInit(CallbackInfo ci) {
+        festvisuals$fresh = true;
+        festvisuals$closing = false;
+        festvisuals$allowClose = false;
     }
 
     @Inject(method = "onClose", at = @At("HEAD"), cancellable = true)
-    private void onCloseHead(CallbackInfo ci) {
-        AnimationsModule module = AnimationsModule.getInstance();
-        if (module != null && module.isEnabled() && !doClose) {
-            isClosing = true;
-            screenAnimation.setValue(1.0);
-            ci.cancel();
-        }
+    private void festvisuals$onClose(CallbackInfo ci) {
+        if (festvisuals$allowClose || !festvisuals$animates()) return;
+
+        festvisuals$closing = true;
+        ci.cancel();
     }
 
     @Inject(method = "extractRenderStateWithTooltipAndSubtitles", at = @At("HEAD"))
-    private void onExtractRenderStateHead(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
+    private void festvisuals$push(GuiGraphicsExtractor context, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
+        festvisuals$transformed = false;
+        if (!festvisuals$animates()) return;
+
         AnimationsModule module = AnimationsModule.getInstance();
-        if (module != null && module.isEnabled()) {
-            boolean isChat = ((Screen)(Object)this) instanceof net.minecraft.client.gui.screens.ChatScreen;
-            boolean isInventory = ((Screen)(Object)this) instanceof net.minecraft.client.gui.screens.inventory.InventoryScreen;
+        Screen self = (Screen) (Object) this;
 
-            if ((isChat && !module.chat.getValue()) || (isInventory && !module.inventory.getValue())) {
-                return;
-            }
-            if (!isChat && !isInventory) return;
+        if (festvisuals$fresh) {
+            festvisuals$animation.setValue(0.0);
+            festvisuals$fresh = false;
+        }
 
-            if (isFirstRender) {
-                screenAnimation.setValue(0.0);
-                isFirstRender = false;
-            }
+        festvisuals$animation.update();
+        festvisuals$animation.run(festvisuals$closing ? 0.0 : 1.0, module.duration(),
+                festvisuals$closing ? module.closingCurve() : module.openingCurve(), true);
 
-            screenAnimation.update();
-            long speed = module.speed.getValue().longValue();
-            Easing ease = module.easing.getValue().equals("РЎ РѕС‚СЃРєРѕРєРѕРј") ? Easing.BACK_OUT : Easing.CUBIC_OUT;
-            
-            screenAnimation.run(isClosing ? 0.0 : 1.0, speed, isClosing ? Easing.CUBIC_IN : ease, true);
-            float progress = (float) screenAnimation.getValue();
+        float progress = (float) festvisuals$animation.getValue();
 
-            if (isClosing && progress <= 0.02f) {
-                doClose = true;
-                net.minecraft.client.Minecraft.getInstance().gui.setScreen(null);
-                return;
-            }
+        if (festvisuals$closing && progress <= 0.02f) {
+            festvisuals$allowClose = true;
+            Minecraft.getInstance().gui.setScreen(null);
+            return;
+        }
 
-            org.joml.Matrix3x2fStack matrices = guiGraphics.pose();
-            matrices.pushMatrix();
+        float strength = module.strength();
+        float centreX = self.width / 2f;
+        float centreY = self.height / 2f;
 
-            float halfW = ((Screen)(Object)this).width / 2f;
-            float halfH = ((Screen)(Object)this).height / 2f;
+        Matrix3x2fStack matrices = context.pose();
+        matrices.pushMatrix();
+        festvisuals$transformed = true;
 
-            if (isChat) {
-                float offset = (1.0f - progress) * 150f;
-                matrices.translate(0, offset);
-            } else {
-                float scale = 0.5f + progress * 0.5f;
-                matrices.translate(halfW, halfH);
-                matrices.scale(scale, scale);
-                matrices.translate(-halfW, -halfH);
-            }
+        if (module.slides()) {
+            // Chat lives at the bottom edge, so it rises into place; everything else drops in.
+            boolean chat = self instanceof ChatScreen;
+            float distance = (1f - progress) * 26f * strength;
+            matrices.translate(0f, chat ? distance : -distance);
+        }
+
+        if (module.scales()) {
+            float scale = 1f - (1f - progress) * 0.18f * strength;
+            matrices.translate(centreX, centreY);
+            matrices.scale(scale, scale);
+            matrices.translate(-centreX, -centreY);
         }
     }
 
     @Inject(method = "extractRenderStateWithTooltipAndSubtitles", at = @At("RETURN"))
-    private void onExtractRenderStateReturn(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
+    private void festvisuals$pop(GuiGraphicsExtractor context, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
+        // Tracked with a flag rather than recomputed: the settings can change between the two
+        // injections, and an unbalanced pop corrupts every later frame.
+        if (!festvisuals$transformed) return;
+
+        context.pose().popMatrix();
+        festvisuals$transformed = false;
+    }
+
+    @Unique
+    private boolean festvisuals$animates() {
         AnimationsModule module = AnimationsModule.getInstance();
-        if (module != null && module.isEnabled()) {
-            boolean isChat = ((Screen)(Object)this) instanceof net.minecraft.client.gui.screens.ChatScreen;
-            boolean isInventory = ((Screen)(Object)this) instanceof net.minecraft.client.gui.screens.inventory.InventoryScreen;
+        if (module == null || !module.isEnabled() || !module.screens.getValue()) return false;
 
-            if ((isChat && !module.chat.getValue()) || (isInventory && !module.inventory.getValue())) {
-                return;
-            }
-            if (!isChat && !isInventory) return;
-
-            guiGraphics.pose().popMatrix();
-        }
+        Screen self = (Screen) (Object) this;
+        if (self instanceof com.fest.visuals.client.ui.clickgui.ScreenClickGUI) return false;
+        if (self instanceof ChatScreen) return module.chat.getValue();
+        if (self instanceof AbstractContainerScreen<?>) return module.containers.getValue();
+        return true;
     }
 }

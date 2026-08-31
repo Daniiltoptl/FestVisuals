@@ -15,6 +15,7 @@ import com.fest.visuals.api.utils.color.UIColors;
 import com.fest.visuals.api.utils.math.MouseUtil;
 import com.fest.visuals.api.utils.render.RenderUtil;
 import com.fest.visuals.api.utils.render.fonts.Fonts;
+import com.fest.visuals.client.features.modules.utility.SoundsModule;
 import com.fest.visuals.client.ui.clickgui.ClickGuiIcons;
 import com.fest.visuals.client.ui.clickgui.module.SettingComponent;
 
@@ -110,6 +111,7 @@ public class ModeComponent extends SettingComponent {
         for (Bound bound : bounds) {
             if (MouseUtil.isHovered(mouseX, mouseY, bound.x, bound.y, bound.width, bound.height)) {
                 setting.setValue(bound.value);
+                SoundsModule.getInstance().playClickSound(true);
                 return;
             }
         }

@@ -11,6 +11,7 @@ import com.fest.visuals.api.event.events.client.KeyEvent;
 import com.fest.visuals.api.system.backend.SharedClass;
 import com.fest.visuals.api.system.draggable.DraggableManager;
 import com.fest.visuals.client.ui.clickgui.ScreenClickGUI;
+import com.fest.visuals.client.features.modules.utility.ZoomModule;
 import com.fest.visuals.client.ui.widget.WidgetManager;
 
 @Mixin(MouseHandler.class)
@@ -18,6 +19,13 @@ public class MixinMouse {
     @Inject(method = "grabMouse", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/Gui;setScreen(Lnet/minecraft/client/gui/screens/Screen;)V"), cancellable = true)
     private void lockCursorHook(CallbackInfo ci) {
         if (Minecraft.getInstance().gui.screen() instanceof ScreenClickGUI) {
+            ci.cancel();
+        }
+    }
+
+    @Inject(method = "onScroll", at = @At("HEAD"), cancellable = true)
+    private void zoomScrollHook(long window, double horizontal, double vertical, CallbackInfo ci) {
+        if (ZoomModule.getInstance().onScroll(vertical)) {
             ci.cancel();
         }
     }

@@ -74,24 +74,28 @@ public class MixinLevelRenderer {
             double y = pos.getY() - state.cameraRenderState.pos.y;
             double z = pos.getZ() - state.cameraRenderState.pos.z;
 
-            java.awt.Color c = new java.awt.Color(255, 120, 0, 200);
-
-            if (module.mode.getValue().equals("Р В РЎв„ўР В Р’В°Р РЋР С“Р РЋРІР‚С™Р В РЎвЂўР В РЎВР В Р вЂ¦Р РЋРІР‚в„–Р В РІвЂћвЂ“")) {
-                c = module.color.getValue();
-            }
+            java.awt.Color c = module.mode.is("Кастомный")
+                    ? module.color.getValue()
+                    : new java.awt.Color(255, 120, 0, 200);
 
             VoxelShape shape = outline.shape();
             RenderUtil.WORLD.beginFrame(collector); RenderUtil.WORLD.startRender(poseStack);
             VertexConsumer buffer = RenderUtil.WORLD.buffer(com.fest.visuals.api.utils.render.pipeline.FestLayers.DEBUG_LINES);
             Matrix4f matrix = poseStack.last().pose(); float width = module.lineWidth.getValue(); buffer.setLineWidth(width);
 
+            // Line width is a hint the driver is free to clamp to one pixel, so thickness is
+            // built by drawing the outline several times, each pass a hair further out.
+            int passes = Math.max(1, Math.round(width));
+
             for (AABB box : shape.toAabbs()) {
-                float minX = (float)(x + box.minX);
-                float minY = (float)(y + box.minY);
-                float minZ = (float)(z + box.minZ);
-                float maxX = (float)(x + box.maxX);
-                float maxY = (float)(y + box.maxY);
-                float maxZ = (float)(z + box.maxZ);
+              for (int pass = 0; pass < passes; pass++) {
+                float grow = pass * 0.0025f;
+                float minX = (float)(x + box.minX) - grow;
+                float minY = (float)(y + box.minY) - grow;
+                float minZ = (float)(z + box.minZ) - grow;
+                float maxX = (float)(x + box.maxX) + grow;
+                float maxY = (float)(y + box.maxY) + grow;
+                float maxZ = (float)(z + box.maxZ) + grow;
 
                 buffer.addVertex(matrix, minX, minY, minZ).setColor(c.getRGB()).setNormal(poseStack.last(), 1, 0, 0);
                 buffer.addVertex(matrix, maxX, minY, minZ).setColor(c.getRGB()).setNormal(poseStack.last(), 1, 0, 0);
@@ -119,6 +123,7 @@ public class MixinLevelRenderer {
                 buffer.addVertex(matrix, maxX, maxY, maxZ).setColor(c.getRGB()).setNormal(poseStack.last(), 0, 0, 1);
                 buffer.addVertex(matrix, minX, maxY, minZ).setColor(c.getRGB()).setNormal(poseStack.last(), 0, 0, 1);
                 buffer.addVertex(matrix, minX, maxY, maxZ).setColor(c.getRGB()).setNormal(poseStack.last(), 0, 0, 1);
+              }
             }
             RenderUtil.WORLD.endRender(poseStack); RenderUtil.WORLD.finishFrame();
         }

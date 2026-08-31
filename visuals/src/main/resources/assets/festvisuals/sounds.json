@@ -1,24 +1,4 @@
 {
-  "nursultan_off": {
-    "sounds": [
-      "festvisuals:nursultan_off"
-    ]
-  },
-  "nursultan_on": {
-    "sounds": [
-      "festvisuals:nursultan_on"
-    ]
-  },
-  "celestial_off": {
-    "sounds": [
-      "festvisuals:celestial_off"
-    ]
-  },
-  "celestial_on": {
-    "sounds": [
-      "festvisuals:celestial_on"
-    ]
-  },
   "smooth_off": {
     "sounds": [
       "festvisuals:smooth_off"
@@ -27,16 +7,6 @@
   "smooth_on": {
     "sounds": [
       "festvisuals:smooth_on"
-    ]
-  },
-  "akrien_on": {
-    "sounds": [
-      "festvisuals:akrien_on"
-    ]
-  },
-  "akrien_off": {
-    "sounds": [
-      "festvisuals:akrien_off"
     ]
   },
   "tech_on": {

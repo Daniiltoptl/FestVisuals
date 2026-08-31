@@ -27,6 +27,7 @@ public class ModuleManager {
                 ArmorHudModule.getInstance(),
                 DynamicIslandModule.getInstance(),
                 InventoryHudModule.getInstance(),
+                ScoreboardHudModule.getInstance(),
                 StatsHudModule.getInstance(),
                 
                 // RENDER
@@ -47,11 +48,11 @@ public class ModuleManager {
                 AutoAuthModule.getInstance(),
                 AutoEatModule.getInstance(),
                 AutoInvisibleModule.getInstance(),
-                AutoJoinModule.getInstance(),
                 AutoResellModule.getInstance(),
                 AutoSprintModule.getInstance(),
                 DeathCordsModule.getInstance(),
-                InventoryUtilsModule.getInstance(),
+                FastScrollerModule.getInstance(),
+                ZoomModule.getInstance(),
                 NameProtectModule.getInstance(),
                 SoundsModule.getInstance()
         );

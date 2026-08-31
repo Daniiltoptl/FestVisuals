@@ -3,6 +3,7 @@ package com.fest.visuals.client.ui.widget;
 import lombok.Getter;
 import com.fest.visuals.api.event.Listener;
 import com.fest.visuals.api.event.events.render.Render2DEvent;
+import com.fest.visuals.api.utils.render.McText;
 import com.fest.visuals.client.ui.widget.overlay.*;
 
 import java.util.ArrayList;
@@ -34,6 +35,9 @@ public class WidgetManager {
 
 
         Render2DEvent.getInstance().subscribe(new Listener<>(event -> {
+            // Widgets that draw with the vanilla font need this frame's extractor.
+            McText.setContext(event.context());
+
             for (Widget widget : widgets) {
                 if (widget.isEnabled()) widget.render(event);
             }

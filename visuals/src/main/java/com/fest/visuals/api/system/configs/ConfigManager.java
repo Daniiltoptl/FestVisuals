@@ -132,6 +132,7 @@ public class ConfigManager {
         return switch (s) {
             case BooleanSetting b -> GSON.toJsonTree(b.getValue());
             case ModeSetting m -> GSON.toJsonTree(m.getValue());
+            case StringSetting st -> GSON.toJsonTree(st.getValue());
             case SliderSetting sl -> GSON.toJsonTree(sl.getValue());
             case BindSetting bi -> GSON.toJsonTree(bi.getValue());
             case MultiBooleanSetting mb -> {
@@ -157,6 +158,7 @@ public class ConfigManager {
             switch (s) {
                 case BooleanSetting b -> b.setValue(e.getAsBoolean());
                 case ModeSetting m -> m.setValue(e.getAsString());
+                case StringSetting st -> st.setValue(e.getAsString());
                 case SliderSetting sl -> sl.setValue(e.getAsFloat());
                 case BindSetting bi -> bi.setValue(e.getAsInt());
                 case MultiBooleanSetting mb -> {

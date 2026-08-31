@@ -25,7 +25,9 @@ import com.fest.visuals.api.utils.animation.Easing;
 import com.fest.visuals.api.utils.color.ColorUtil;
 import com.fest.visuals.api.utils.color.UIColors;
 import com.fest.visuals.api.utils.math.MouseUtil;
+import com.fest.visuals.api.utils.render.McText;
 import com.fest.visuals.api.utils.render.RenderUtil;
+import com.fest.visuals.api.utils.render.pipeline.FestRenderer;
 import com.fest.visuals.api.utils.render.fonts.Fonts;
 import com.fest.visuals.api.utils.render.fonts.Icons;
 import com.fest.visuals.client.features.modules.hud.DynamicIslandModule;
@@ -126,7 +128,11 @@ public class DynamicIslandWidget extends Widget {
 
     @Override
     public void render(PoseStack matrixStack) {
-                NowPlayingService service = NowPlayingService.getInstance();
+        FestRenderer.withBackdrop(() -> renderIsland(matrixStack));
+    }
+
+    private void renderIsland(PoseStack matrixStack) {
+        NowPlayingService service = NowPlayingService.getInstance();
         NowPlayingService.NowPlaying np = service.current();
         
         boolean hasMusic = false;
@@ -190,14 +196,14 @@ public class DynamicIslandWidget extends Widget {
         float gap = scaled(6f);
         float dot = scaled(2f);
 
-        float clockW = cfg.showClock.getValue() ? Fonts.PS_MEDIUM.getWidth(clockText(), fontSize) : 0f;
-        float pillW = Fonts.PS_BOLD.getWidth("Fest", fontSize) + Fonts.PS_BOLD.getWidth("Visuals", fontSize)
+        float clockW = cfg.showClock.getValue() ? McText.getWidth(clockText(), fontSize) : 0f;
+        float pillW = McText.getWidth("Fest", fontSize) + McText.getWidth("Visuals", fontSize)
                 + gap + dot + pad * 2f;
         float pingW = 0f;
         if (cfg.showPing.getValue()) {
             pingW = Fonts.ICONS.getWidth(Icons.WLAN.getLetter(), fontSize)
                     + scaled(2.5f)
-                    + Fonts.PS_MEDIUM.getWidth(pingText(), fontSize);
+                    + McText.getWidth(pingText(), fontSize);
         }
 
         return clockW + (cfg.showClock.getValue() ? gap : 0f) + pillW + (cfg.showPing.getValue() ? gap + pingW : 0f);
@@ -219,9 +225,9 @@ public class DynamicIslandWidget extends Widget {
         String brandRight = "Visuals";
         String ping = pingText();
 
-        float clockW = Fonts.PS_MEDIUM.getWidth(clock, fontSize);
-        float brandLeftW = Fonts.PS_BOLD.getWidth(brandLeft, fontSize);
-        float brandRightW = Fonts.PS_BOLD.getWidth(brandRight, fontSize);
+        float clockW = McText.getWidth(clock, fontSize);
+        float brandLeftW = McText.getWidth(brandLeft, fontSize);
+        float brandRightW = McText.getWidth(brandRight, fontSize);
         float pillW = brandLeftW + brandRightW + gap + dot + pad * 2f;
 
         Color clockColor = ColorUtil.setAlpha(new Color(248, 248, 250), (int) (255 * a));
@@ -232,14 +238,14 @@ public class DynamicIslandWidget extends Widget {
         float baselineY = y + (pillH - fontSize) / 2f;
 
         if (cfg.showClock.getValue()) {
-            Fonts.PS_MEDIUM.drawText(matrixStack, clock, cx, baselineY, fontSize, clockColor);
+            McText.drawText(matrixStack, clock, cx, baselineY, fontSize, clockColor);
             cx += clockW + gap;
         }
 
         RenderUtil.RECT.draw(matrixStack, cx, y, pillW, pillH, pillH / 2f, ColorUtil.setAlpha(Color.BLACK, (int) (235 * a)));
         float bx = cx + pad;
-        Fonts.PS_BOLD.drawText(matrixStack, brandLeft, bx, baselineY, fontSize, textLight);
-        Fonts.PS_BOLD.drawText(matrixStack, brandRight, bx + brandLeftW, baselineY, fontSize, accent);
+        McText.drawText(matrixStack, brandLeft, bx, baselineY, fontSize, textLight);
+        McText.drawText(matrixStack, brandRight, bx + brandLeftW, baselineY, fontSize, accent);
 
         float dotX = bx + brandLeftW + brandRightW + gap - dot / 2f + scaled(2f);
         float dotY = y + pillH / 2f - dot / 2f;
@@ -251,7 +257,7 @@ public class DynamicIslandWidget extends Widget {
             Color pingColor = UIColors.primary((int) (240 * a));
             Fonts.ICONS.drawText(matrixStack, Icons.WLAN.getLetter(), cx, baselineY, fontSize, pingColor);
             cx += Fonts.ICONS.getWidth(Icons.WLAN.getLetter(), fontSize) + scaled(2.5f);
-            Fonts.PS_MEDIUM.drawText(matrixStack, ping, cx, baselineY, fontSize, pingColor);
+            McText.drawText(matrixStack, ping, cx, baselineY, fontSize, pingColor);
         }
     }
 
@@ -287,13 +293,13 @@ public class DynamicIslandWidget extends Widget {
         String title = np.title().isEmpty() ? "Unknown track" : np.title();
 
         float artistY = contentY + d(2f);
-        Fonts.PS_MEDIUM.drawText(matrixStack, artist, textX, artistY, artistFont,
+        McText.drawText(matrixStack, artist, textX, artistY, artistFont,
                 ColorUtil.setAlpha(Color.WHITE, (int) (102 * a)));
 
         // Track names routinely overflow the column, so scroll rather than clip them.
         // drawWrap falls back to a plain draw whenever the text already fits.
         float titleY = artistY + artistFont + d(5f);
-        Fonts.PS_BOLD.drawWrap(matrixStack, title, textX, titleY, textW, titleFont,
+        McText.drawWrap(matrixStack, title, textX, titleY, textW, titleFont,
                 ColorUtil.setAlpha(new Color(244, 244, 246), alpha), d(24f),
                 MARQUEE_CYCLE, MARQUEE_PAUSE);
 
@@ -313,14 +319,14 @@ public class DynamicIslandWidget extends Widget {
         float barY = controlY - d(12f) - barH;
         String elapsed = formatTime(position);
         String remaining = duration > 0 ? "-" + formatTime(Math.max(0, duration - position)) : "";
-        float elapsedW = Fonts.PS_MEDIUM.getWidth(elapsed, timeFont);
-        float remainingW = remaining.isEmpty() ? 0f : Fonts.PS_MEDIUM.getWidth(remaining, timeFont);
+        float elapsedW = McText.getWidth(elapsed, timeFont);
+        float remainingW = remaining.isEmpty() ? 0f : McText.getWidth(remaining, timeFont);
         Color timeColor = ColorUtil.setAlpha(Color.WHITE, (int) (102 * a));
 
         float timeY = barY + barH / 2f - timeFont / 2f;
-        Fonts.PS_MEDIUM.drawText(matrixStack, elapsed, x + padX, timeY, timeFont, timeColor);
+        McText.drawText(matrixStack, elapsed, x + padX, timeY, timeFont, timeColor);
         if (!remaining.isEmpty()) {
-            Fonts.PS_MEDIUM.drawText(matrixStack, remaining, x + w - padX - remainingW, timeY, timeFont, timeColor);
+            McText.drawText(matrixStack, remaining, x + w - padX - remainingW, timeY, timeFont, timeColor);
         }
 
         float trackX = x + padX + elapsedW + d(10f);
@@ -578,10 +584,10 @@ public class DynamicIslandWidget extends Widget {
 
     private String truncate(String text, float maxWidth, float size) {
         if (text == null || text.isEmpty()) return "";
-        if (Fonts.PS_MEDIUM.getWidth(text, size) <= maxWidth) return text;
+        if (McText.getWidth(text, size) <= maxWidth) return text;
 
         String cut = text;
-        while (cut.length() > 1 && Fonts.PS_MEDIUM.getWidth(cut + "вЂ¦", size) > maxWidth) {
+        while (cut.length() > 1 && McText.getWidth(cut + "вЂ¦", size) > maxWidth) {
             cut = cut.substring(0, cut.length() - 1);
         }
         return cut + "вЂ¦";

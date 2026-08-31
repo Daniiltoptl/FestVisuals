@@ -13,6 +13,10 @@ public abstract class SettingComponent extends UIComponent {
     private final Setting<?> setting;
     private final AnimationUtil visibleAnimation = new AnimationUtil();
 
+    /** Typed characters, for the settings that accept free text. */
+    public void charTyped(char chr) {
+    }
+
     public void updateHeight(float value) {
         setHeight(scaled(value));
     }

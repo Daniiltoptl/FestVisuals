@@ -18,6 +18,7 @@ import com.fest.visuals.api.utils.render.ScissorUtil;
 import com.fest.visuals.api.utils.render.fonts.Fonts;
 import com.fest.visuals.client.ui.clickgui.module.ModuleComponent;
 import com.fest.visuals.client.ui.clickgui.module.SettingComponent;
+import com.fest.visuals.client.ui.clickgui.module.settings.StringComponent;
 
 /**
  * Floating card holding one module's settings.
@@ -286,10 +287,24 @@ public class ClickGuiSettingsPanel {
     }
 
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        boolean consumed = false;
         for (SettingComponent setting : component.getSettings()) {
             if (setting.getAlpha() < 0.4f) continue;
+            // A focused text field owns the key — Escape has to leave the field before it is
+            // allowed to close the card or the whole GUI.
+            if (setting instanceof StringComponent field && field.isFocused()) consumed = true;
             setting.keyPressed(keyCode, scanCode, modifiers);
         }
-        return false;
+        return consumed;
+    }
+
+    public boolean charTyped(char chr) {
+        boolean consumed = false;
+        for (SettingComponent setting : component.getSettings()) {
+            if (setting.getAlpha() < 0.4f) continue;
+            if (setting instanceof StringComponent field && field.isFocused()) consumed = true;
+            setting.charTyped(chr);
+        }
+        return consumed;
     }
 }

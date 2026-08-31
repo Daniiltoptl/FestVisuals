@@ -75,7 +75,11 @@ public class InventoryWidget extends Widget {
             }
         });
 
-        float iconScale = slot / 16f;
+        // Whole-number scale and whole-pixel origins keep the sprites crisp instead of
+        // resampling every item at a fractional size.
+        int iconScale = Math.max(1, Math.round(slot / 16f));
+        float iconSize = iconScale * 16f;
+        float iconInset = (slot - iconSize) / 2f;
         for (int index = 0; index < COLUMNS * ROWS; index++) {
             ItemStack stack = mc.player.getInventory().getItem(FIRST_SLOT + index);
             if (stack == null || stack.isEmpty()) continue;
@@ -84,7 +88,7 @@ public class InventoryWidget extends Widget {
             float slotY = y + pad + (index / COLUMNS) * (slot + gap);
 
             context.pose().pushMatrix();
-            context.pose().translate(slotX, slotY);
+            context.pose().translate(Math.round(slotX + iconInset), Math.round(slotY + iconInset));
             context.pose().scale(iconScale, iconScale);
             context.item(stack, 0, 0);
             if (cfg.showCounts.getValue()) {

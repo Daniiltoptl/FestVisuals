@@ -13,6 +13,8 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import com.fest.visuals.api.event.events.render.Render2DEvent;
 import com.fest.visuals.client.features.modules.hud.PotionsHudModule;
+import com.fest.visuals.client.features.modules.hud.ScoreboardHudModule;
+import com.fest.visuals.client.features.modules.render.RemovalsModule;
 
 @Mixin(Hud.class)
 public class MixinInGameHud {
@@ -34,8 +36,10 @@ public class MixinInGameHud {
     private void renderScoreboardSidebar(GuiGraphicsExtractor context, Objective objective, CallbackInfo ci) {
         if (Minecraft.getInstance().player == null) return;
 
-        // The client always draws its own draggable copy of the sidebar, so vanilla stands down
-        // unconditionally — otherwise both would render on top of each other.
-        ci.cancel();
+        // Vanilla stands down only while the client draws its own copy; with the module off the
+        // untouched sidebar comes back.
+        if (RemovalsModule.getInstance().isScoreboard() || ScoreboardHudModule.getInstance().isEnabled()) {
+            ci.cancel();
+        }
     }
 }

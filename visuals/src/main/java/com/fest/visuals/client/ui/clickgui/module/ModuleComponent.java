@@ -59,6 +59,7 @@ public class ModuleComponent extends UIComponent {
             if (setting instanceof ColorSetting color) settings.add(new ColorComponent(color));
             if (setting instanceof RunSetting run) settings.add(new ButtonComponent(run));
             if (setting instanceof BindSetting bindSetting) settings.add(new BindComponent(bindSetting));
+            if (setting instanceof StringSetting string) settings.add(new StringComponent(string));
         }
         enableAnimation.setValue(module.isEnabled() ? 1.0 : 0.0);
     }

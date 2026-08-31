@@ -14,6 +14,7 @@ import com.fest.visuals.api.utils.color.UIColors;
 import com.fest.visuals.api.utils.math.MouseUtil;
 import com.fest.visuals.api.utils.render.RenderUtil;
 import com.fest.visuals.api.utils.render.fonts.Fonts;
+import com.fest.visuals.client.features.modules.utility.SoundsModule;
 import com.fest.visuals.client.ui.clickgui.module.SettingComponent;
 
 /** Label on the left, switch on the right — the switch knob overshoots on its way across. */
@@ -88,6 +89,7 @@ public class BooleanComponent extends SettingComponent {
     public void mouseClicked(double mouseX, double mouseY, int button) {
         if (button == 0 && MouseUtil.isHovered(mouseX, mouseY, getX(), getY(), getWidth(), getHeight())) {
             setting.toggle();
+            SoundsModule.getInstance().playClickSound(setting.getValue());
         }
     }
 

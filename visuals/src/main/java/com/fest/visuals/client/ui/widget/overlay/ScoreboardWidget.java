@@ -7,7 +7,12 @@ import java.util.List;
 
 import com.fest.visuals.api.utils.color.ColorUtil;
 import com.fest.visuals.api.utils.color.UIColors;
+import com.fest.visuals.api.utils.render.McText;
 import com.fest.visuals.api.utils.render.RenderUtil;
+import com.fest.visuals.api.utils.render.pipeline.FestRenderer;
+import com.fest.visuals.client.features.modules.hud.ScoreboardHudModule;
+
+import java.awt.Color;
 import com.fest.visuals.client.ui.widget.Widget;
 
 import net.minecraft.world.scores.DisplaySlot;
@@ -29,8 +34,11 @@ public class ScoreboardWidget extends Widget {
 
     public ScoreboardWidget() {
         super(300f, 60f);
-        // No module gates this one: the sidebar is always drawn, dragging is the only setting.
-        setEnabled(true);
+    }
+
+    @Override
+    public float fontMul() {
+        return ScoreboardHudModule.getInstance().fontScale.getValue();
     }
 
     @Override
@@ -62,21 +70,23 @@ public class ScoreboardWidget extends Widget {
         Scoreboard scoreboard = mc.level.getScoreboard();
         List<PlayerScoreEntry> rows = entries(scoreboard, objective);
 
+        ScoreboardHudModule cfg = ScoreboardHudModule.getInstance();
+
         float pad = getGap() * 2f;
-        float fontSize = scaled(7f * fontMul());
+        float fontSize = scaled(8f * fontMul());
         float rowGap = scaled(2f);
-        float titleSize = scaled(7.5f * fontMul());
+        float titleSize = fontSize;
 
         String title = objective.getDisplayName().getString();
-        boolean showScores = true;
+        boolean showScores = cfg.numbers.getValue();
 
         // Width follows the widest line, so long team names are not clipped.
-        float width = getMediumFont().getWidth(title, titleSize);
+        float width = McText.getWidth(title, titleSize);
         for (PlayerScoreEntry entry : rows) {
             String name = displayName(scoreboard, entry);
-            float line = getMediumFont().getWidth(name, fontSize);
+            float line = McText.getWidth(name, fontSize);
             if (showScores) {
-                line += getGap() * 3f + getMediumFont().getWidth(String.valueOf(entry.value()), fontSize);
+                line += getGap() * 3f + McText.getWidth(String.valueOf(entry.value()), fontSize);
             }
             width = Math.max(width, line);
         }
@@ -92,21 +102,31 @@ public class ScoreboardWidget extends Widget {
         getDraggable().setWidth(width);
         getDraggable().setHeight(height);
 
-        RenderUtil.BLUR_RECT.draw(matrixStack, x, y, width, height, getGap() * 2f, UIColors.widgetBlur());
+        // Vanilla text is drawn by the GUI pass, so the panel behind it goes on the backdrop
+        // queue; drawn normally it would land on top of its own rows.
+        if (cfg.background.getValue()) {
+            float panelWidth = width;
+            float panelHeight = height;
+            FestRenderer.withBackdrop(() -> RenderUtil.BLUR_RECT.draw(matrixStack, x, y,
+                    panelWidth, panelHeight, getGap() * 2f, UIColors.widgetBlur()));
+        }
 
-        getMediumFont().drawCenteredText(matrixStack, title, x + width / 2f,
+        McText.drawCenteredText(matrixStack, title, x + width / 2f,
                 y + (headerHeight - titleSize) / 2f, titleSize, UIColors.textColor());
+
+        Color scoreColor = cfg.vanillaNumbers.getValue()
+                ? new Color(255, 85, 85)
+                : ColorUtil.setAlpha(UIColors.primary(), 255);
 
         float rowY = y + headerHeight;
         for (PlayerScoreEntry entry : rows) {
             String name = displayName(scoreboard, entry);
-            getMediumFont().drawText(matrixStack, name, x + pad, rowY, fontSize, UIColors.textColor());
+            McText.drawText(matrixStack, name, x + pad, rowY, fontSize, UIColors.textColor());
 
             if (showScores) {
                 String score = String.valueOf(entry.value());
-                float scoreWidth = getMediumFont().getWidth(score, fontSize);
-                getMediumFont().drawText(matrixStack, score, x + width - pad - scoreWidth, rowY, fontSize,
-                        ColorUtil.setAlpha(UIColors.primary(), 255));
+                float scoreWidth = McText.getWidth(score, fontSize);
+                McText.drawText(matrixStack, score, x + width - pad - scoreWidth, rowY, fontSize, scoreColor);
             }
 
             rowY += fontSize + rowGap;

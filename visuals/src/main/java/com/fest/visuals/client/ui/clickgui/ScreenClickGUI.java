@@ -24,6 +24,7 @@ import com.fest.visuals.api.utils.render.RenderUtil;
 import com.fest.visuals.api.utils.render.pipeline.FestRenderer;
 import com.fest.visuals.api.utils.render.ScissorUtil;
 import com.fest.visuals.api.utils.render.fonts.Fonts;
+import com.fest.visuals.client.features.modules.utility.SoundsModule;
 import com.fest.visuals.client.ui.clickgui.module.ModuleComponent;
 import com.fest.visuals.client.ui.theme.ThemeEditor;
 
@@ -86,6 +87,7 @@ public class ScreenClickGUI extends Screen implements QuickImports {
         clampWindow();
 
         modules.restart();
+        SoundsModule.getInstance().playScreenSound(true);
         themeEditor.setOpen(tab == ClickGuiTab.THEME);
         themeEditor.setEmbedded(tab == ClickGuiTab.THEME);
     }
@@ -267,6 +269,7 @@ public class ScreenClickGUI extends Screen implements QuickImports {
         for (ClickGuiSettingsPanel panel : panels) {
             if (panel.getComponent() == component && !panel.isClosing()) {
                 panel.close();
+                SoundsModule.getInstance().playClickSound(false);
                 return;
             }
         }
@@ -285,6 +288,7 @@ public class ScreenClickGUI extends Screen implements QuickImports {
         float y = windowY + ClickGuiLayout.scaled(8f) + alive * ClickGuiLayout.scaled(16f);
         y = Mth.clamp(y, gap, Math.max(gap, screenH - ClickGuiLayout.scaled(80f)));
 
+        SoundsModule.getInstance().playClickSound(true);
         panels.add(new ClickGuiSettingsPanel(component, x, y, rowX, rowY + ClickGuiLayout.rowHeight() / 2f));
     }
 
@@ -309,8 +313,15 @@ public class ScreenClickGUI extends Screen implements QuickImports {
 
     @Override
     public boolean keyPressed(KeyEvent input) {
-        // Escape always gets out: it clears the search text if there is any, then closes the cards,
-        // then the screen. Nothing else may swallow it.
+        // A focused text field takes priority over everything, Escape included.
+        boolean typing = false;
+        for (ClickGuiSettingsPanel panel : panels) {
+            if (panel.keyPressed(input.key(), input.scancode(), input.modifiers())) typing = true;
+        }
+        if (typing) return true;
+
+        // Escape otherwise gets out: it clears the search text if there is any, then closes the
+        // cards, then the screen. Nothing else may swallow it.
         if (input.key() == GLFW.GLFW_KEY_ESCAPE) {
             if (!topBar.query().isEmpty()) {
                 topBar.clearSearch();
@@ -322,16 +333,13 @@ public class ScreenClickGUI extends Screen implements QuickImports {
                 return true;
             }
             closing = true;
+            SoundsModule.getInstance().playScreenSound(false);
             return true;
         }
 
         if (topBar.keyPressed(input.key())) {
             modules.restart();
             return true;
-        }
-
-        for (ClickGuiSettingsPanel panel : panels) {
-            panel.keyPressed(input.key(), input.scancode(), input.modifiers());
         }
 
         if (tab == ClickGuiTab.THEME) {
@@ -350,6 +358,10 @@ public class ScreenClickGUI extends Screen implements QuickImports {
             modules.restart();
             return true;
         }
+        for (ClickGuiSettingsPanel panel : panels) {
+            if (panel.charTyped(chr)) return true;
+        }
+
         if (tab == ClickGuiTab.THEME) return themeEditor.charTyped(chr, 0);
         return super.charTyped(input);
     }
