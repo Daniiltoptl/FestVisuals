@@ -72,12 +72,15 @@ public class CrosshairModule extends Module {
         addEvents(Render2DEvent.getInstance().subscribe(new Listener<>(event -> render(event.matrixStack()))));
     }
 
-    /** Hidden in third person and while a screen is open, the way the vanilla one is. */
+    /**
+     * Hidden in third person and while a screen is open, the way the vanilla one is. F1 needs no
+     * check here: the render event fires from the HUD, which Minecraft skips entirely when the
+     * interface is hidden.
+     */
     private boolean shouldRender() {
         return mc.player != null && mc.level != null
                 && mc.gui.screen() == null
-                && mc.options.getCameraType().isFirstPerson()
-                && !mc.options.hideGui;
+                && mc.options.getCameraType().isFirstPerson();
     }
 
     private void render(PoseStack matrices) {
