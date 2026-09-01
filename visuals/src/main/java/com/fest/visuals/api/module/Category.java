@@ -8,7 +8,6 @@ import lombok.RequiredArgsConstructor;
 public enum Category {
     RENDER("Render"),
     HUD("HUD"),
-    PLAYER("Игрок"),
     OTHER("Разное");
 
     private final String label;

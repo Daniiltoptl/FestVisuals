@@ -231,7 +231,7 @@ public class ClickGuiSettingsPanel {
      */
     private float cardWidth() {
         for (SettingComponent setting : component.getSettings()) {
-            if (setting instanceof CanvasComponent) return ClickGuiLayout.panelWidth() * 1.7f;
+            if (setting instanceof CanvasComponent) return ClickGuiLayout.panelWidth() * 1.35f;
         }
         return ClickGuiLayout.panelWidth();
     }

@@ -31,8 +31,17 @@ public class CanvasComponent extends SettingComponent {
         this.setting = setting;
     }
 
+    /** Smaller than the card so the grid does not swallow the whole settings panel. */
+    private float gridSize() {
+        return getWidth() * 0.8f;
+    }
+
+    private float gridX() {
+        return getX() + (getWidth() - gridSize()) / 2f;
+    }
+
     private float cell() {
-        return getWidth() / CanvasSetting.SIZE;
+        return gridSize() / CanvasSetting.SIZE;
     }
 
     private float gridY() {
@@ -40,7 +49,7 @@ public class CanvasComponent extends SettingComponent {
     }
 
     private float previewY() {
-        return gridY() + getWidth() + scaled(4f);
+        return gridY() + gridSize() + scaled(4f);
     }
 
     private float previewHeight() {
@@ -57,7 +66,7 @@ public class CanvasComponent extends SettingComponent {
 
     @Override
     public void render(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
-        setHeight(scaled(9f) + getWidth() + scaled(4f) + previewHeight() + scaled(4f) + buttonHeight());
+        setHeight(scaled(9f) + gridSize() + scaled(4f) + previewHeight() + scaled(4f) + buttonHeight());
 
         PoseStack matrices = RenderUtil.matrices();
         int full = (int) (getAlpha() * 255f);
@@ -67,8 +76,10 @@ public class CanvasComponent extends SettingComponent {
 
         float cell = cell();
         float top = gridY();
+        float left = gridX();
+        float grid = gridSize();
 
-        RenderUtil.RECT.draw(matrices, getX(), top, getWidth(), getWidth(), scaled(3f),
+        RenderUtil.RECT.draw(matrices, left, top, grid, grid, scaled(3f),
                 ColorUtil.setAlpha(Color.BLACK, (int) (full * 0.45f)));
 
         if (painting || erasing) paint(mouseX, mouseY);
@@ -76,7 +87,7 @@ public class CanvasComponent extends SettingComponent {
         int centre = CanvasSetting.SIZE / 2;
         for (int row = 0; row < CanvasSetting.SIZE; row++) {
             for (int column = 0; column < CanvasSetting.SIZE; column++) {
-                float cx = getX() + column * cell;
+                float cx = left + column * cell;
                 float cy = top + row * cell;
 
                 if (setting.get(column, row)) {
@@ -133,9 +144,9 @@ public class CanvasComponent extends SettingComponent {
     private void paint(double mouseX, double mouseY) {
         float cell = cell();
         float top = gridY();
-        if (!MouseUtil.isHovered(mouseX, mouseY, getX(), top, getWidth(), getWidth())) return;
+        if (!MouseUtil.isHovered(mouseX, mouseY, gridX(), top, gridSize(), gridSize())) return;
 
-        int column = (int) ((mouseX - getX()) / cell);
+        int column = (int) ((mouseX - gridX()) / cell);
         int row = (int) ((mouseY - top) / cell);
         setting.set(column, row, painting);
     }
@@ -152,10 +163,17 @@ public class CanvasComponent extends SettingComponent {
             return;
         }
 
-        if (!MouseUtil.isHovered(mouseX, mouseY, getX(), gridY(), getWidth(), getWidth())) return;
+        if (!MouseUtil.isHovered(mouseX, mouseY, gridX(), gridY(), gridSize(), gridSize())) return;
 
-        painting = button == 0;
-        erasing = button == 1;
+        // Left click on a filled cell rubs it out: the stroke takes its mode from the cell it
+        // started on, so a mistake is undone the same way it was made.
+        float cell = cell();
+        int column = (int) ((mouseX - gridX()) / cell);
+        int row = (int) ((mouseY - gridY()) / cell);
+        boolean filled = setting.get(column, row);
+
+        painting = button == 0 && !filled;
+        erasing = button == 1 || (button == 0 && filled);
         paint(mouseX, mouseY);
     }
 

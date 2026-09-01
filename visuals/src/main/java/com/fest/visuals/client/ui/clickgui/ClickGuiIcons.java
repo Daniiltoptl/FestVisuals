@@ -33,10 +33,6 @@ public final class ClickGuiIcons {
                 RenderUtil.RECT.draw(matrices, x, y + size * 0.45f, size * 0.55f, size * 0.55f, size * 0.08f, color);
                 RenderUtil.RECT.draw(matrices, x + size * 0.65f, y + size * 0.65f, size * 0.35f, size * 0.35f, size * 0.08f, color);
             }
-            case PLAYER -> {
-                RenderUtil.RECT.draw(matrices, cx - size * 0.2f, y, size * 0.4f, size * 0.4f, size * 0.2f, color);
-                RenderUtil.RECT.draw(matrices, cx - size * 0.32f, y + size * 0.5f, size * 0.64f, size * 0.5f, size * 0.22f, color);
-            }
             case OTHER -> {
                 float dot = size * 0.22f;
                 RenderUtil.RECT.draw(matrices, cx - dot / 2f, y + size * 0.08f, dot, dot, dot / 2f, color);

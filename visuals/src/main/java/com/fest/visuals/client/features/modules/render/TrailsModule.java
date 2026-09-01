@@ -7,7 +7,6 @@ import net.minecraft.world.level.block.*;
 import net.minecraft.client.Camera;
 import net.minecraft.client.renderer.*;
 import net.minecraft.core.BlockPos;
-import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.block.AirBlock;
 import net.minecraft.world.level.block.BasePressurePlateBlock;
 import net.minecraft.world.level.block.Block;
@@ -35,7 +34,6 @@ import com.fest.visuals.api.utils.color.UIColors;
 import com.fest.visuals.api.utils.math.MathUtil;
 import com.fest.visuals.api.utils.math.TimerUtil;
 import com.fest.visuals.api.utils.render.RenderUtil;
-import com.fest.visuals.api.system.files.FileUtil;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
@@ -47,25 +45,31 @@ import java.util.List;
 public class TrailsModule extends Module {
     @Getter private static final TrailsModule instance = new TrailsModule();
 
-    private final SliderSetting length = new SliderSetting("Length").value(1500f).range(500f, 3000f).step(100f);
+    private final SliderSetting length = new SliderSetting("Длина следа").value(1500f).range(500f, 3000f).step(100f);
     private final SliderSetting size = new SliderSetting("Размер").value(0.2f).range(0.05f, 0.3f).step(0.01f);
-    private final SliderSetting stretch = new SliderSetting("Высота").value(2.2f).range(0.5f, 6f).step(0.1f);
-    private final SliderSetting narrow = new SliderSetting("Ширина").value(0.35f).range(0.1f, 2f).step(0.05f);
-    private final BooleanSetting renderInFirstPerson = new BooleanSetting("In first person").value(false);
-    private final BooleanSetting physics = new BooleanSetting("Physics").value(true);
-    private final SliderSetting fadeTime = new SliderSetting("Fade Time").value(250f).range(100f, 1000f).step(50f);
+    private final SliderSetting stretch = new SliderSetting("Высота").value(3.5f).range(0.5f, 8f).step(0.1f);
+    private final SliderSetting narrow = new SliderSetting("Ширина").value(0.18f).range(0.05f, 1f).step(0.01f);
+    private final SliderSetting brightness = new SliderSetting("Яркость").value(0.5f).range(0.1f, 1f).step(0.05f);
+    private final BooleanSetting throughWalls = new BooleanSetting("Сквозь блоки").value(false);
+    private final BooleanSetting renderInFirstPerson = new BooleanSetting("От первого лица").value(false);
+    private final BooleanSetting physics = new BooleanSetting("Физика").value(true);
+    private final SliderSetting fadeTime = new SliderSetting("Затухание").value(250f).range(100f, 1000f).step(50f);
 
     private final List<TrailParticle> particles = new ArrayList<>();
-    private final Identifier bloomTexture = FileUtil.getImage("particles/glow");
+
+    /** Where the last mark was dropped, so a standing player does not pile a stack of them up. */
+    private Vec3 lastSpawn;
 
     // ета кагуне как у канеки курва
     public TrailsModule() {
-        addSettings(length, size, stretch, narrow, renderInFirstPerson, physics, fadeTime);
+        addSettings(length, size, stretch, narrow, brightness, throughWalls,
+                renderInFirstPerson, physics, fadeTime);
     }
 
     @Override
     public void onEnable() {
         particles.clear();
+        lastSpawn = null;
     }
 
     @Override
@@ -80,6 +84,11 @@ public class TrailsModule extends Module {
             }
 
             Vec3 playerPos = mc.player.position();
+
+            // Standing still used to drop a mark every tick, which stacked into a bright column.
+            if (lastSpawn != null && lastSpawn.distanceToSqr(playerPos) < 0.0025) return;
+            lastSpawn = playerPos;
+
             particles.add(new TrailParticle(
                     new Vec3(playerPos.x, playerPos.y + mc.player.getBbHeight() * (isFirstPerson ? 0.2 : 0.5), playerPos.z),
                     particles.size()
@@ -127,7 +136,8 @@ public class TrailsModule extends Module {
 
     private void renderParticle(PoseStack matrixStack, TrailParticle particle, float size, int fadeTime, int length, List<TrailParticle> particles) {
         particle.handleAlphaTransitions(fadeTime, length);
-        Color color = ColorUtil.setAlpha(UIColors.gradient(particle.getIndex() * 30), (int) particle.getAlpha());
+        Color color = ColorUtil.setAlpha(UIColors.gradient(particle.getIndex() * 30),
+                (int) (particle.getAlpha() * brightness.getValue()));
 
         Vec3 pos = particle.getPosition();
 
@@ -144,18 +154,22 @@ public class TrailsModule extends Module {
 
 
         matrixStack.translate(pos.x - renderCamera.x, pos.y - renderCamera.y, pos.z - renderCamera.z);
+
+        // Yaw only. Tilting with the camera pitch is what rounded the mark into a blob; keeping the
+        // quad upright leaves a flat ribbon that still turns to face the player.
         matrixStack.mulPose(Axis.YP.rotationDegrees(-gameRendererCamera.yRot()));
-        matrixStack.mulPose(Axis.XP.rotationDegrees(gameRendererCamera.xRot()));
 
         float halfWidth = bloomSize * narrow.getValue();
         float halfHeight = bloomSize * stretch.getValue();
+        int argb = color.getRGB();
 
-        VertexConsumer bufferBuilder = RenderUtil.WORLD.textured(bloomTexture);
-        bufferBuilder.addVertex(matrix, halfWidth, -halfHeight, 0f).setUv(0f, 1f).setColor(color.getRGB());
-        bufferBuilder.addVertex(matrix, -halfWidth, -halfHeight, 0f).setUv(1f, 1f).setColor(color.getRGB());
-        bufferBuilder.addVertex(matrix, -halfWidth, halfHeight, 0f).setUv(1f, 0f).setColor(color.getRGB());
-        bufferBuilder.addVertex(matrix, halfWidth, halfHeight, 0f).setUv(0f, 0f).setColor(color.getRGB());
-
+        VertexConsumer bufferBuilder = throughWalls.getValue()
+                ? RenderUtil.WORLD.buffer(com.fest.visuals.api.utils.render.pipeline.FestLayers.QUADS)
+                : RenderUtil.WORLD.occludedQuads();
+        bufferBuilder.addVertex(matrix, halfWidth, -halfHeight, 0f).setColor(argb);
+        bufferBuilder.addVertex(matrix, -halfWidth, -halfHeight, 0f).setColor(argb);
+        bufferBuilder.addVertex(matrix, -halfWidth, halfHeight, 0f).setColor(argb);
+        bufferBuilder.addVertex(matrix, halfWidth, halfHeight, 0f).setColor(argb);
     }
 
     @Getter

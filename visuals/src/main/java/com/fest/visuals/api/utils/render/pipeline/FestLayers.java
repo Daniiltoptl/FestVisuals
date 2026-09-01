@@ -42,6 +42,19 @@ public class FestLayers {
             .withPrimitiveTopology(PrimitiveTopology.QUADS)
             .build());
 
+    /**
+     * Flat world quads that respect the depth buffer: geometry behind a block or a mob is hidden
+     * instead of shining through it, and the blend is ordinary translucency rather than the
+     * additive one the ESP layers use, which turns overlapping quads into a white glare.
+     */
+    private final RenderPipeline OCCLUDED_QUADS_PIPELINE = RenderPipelines.register(RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
+            .withLocation(id("pipeline/occluded_quads"))
+            .withCull(false)
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+            // Depth write stays off so overlapping translucent quads do not cull each other.
+            .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false))
+            .build());
+
     private final RenderPipeline DEBUG_LINES_PIPELINE = RenderPipelines.register(RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
             .withLocation(id("pipeline/esp_debug_lines"))
             .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR)
@@ -55,6 +68,7 @@ public class FestLayers {
     // 26.2 only supports vertex sorting for QUADS. Passing a sorting strategy
     // to DEBUG_LINES makes StagedVertexBuffer abort the entire render frame.
     public final RenderType DEBUG_LINES = RenderType.create("festvisuals_debug_lines", RenderSetup.builder(DEBUG_LINES_PIPELINE).createRenderSetup());
+    public final RenderType OCCLUDED_QUADS = RenderType.create("festvisuals_occluded_quads", RenderSetup.builder(OCCLUDED_QUADS_PIPELINE).sortOnUpload().createRenderSetup());
 
     private final Function<Identifier, RenderType> TEXTURED = Util.memoize(texture ->
             RenderType.create("festvisuals_esp_textured", RenderSetup.builder(TEXTURED_PIPELINE).withTexture("Sampler0", texture).sortOnUpload().createRenderSetup()));

@@ -9,7 +9,6 @@ import com.fest.visuals.api.module.Category;
 public enum ClickGuiTab {
     RENDER(Category.RENDER, "Render", "Настройки визуалов"),
     HUD(Category.HUD, "HUD", "Настройки интерфейса"),
-    PLAYER(Category.PLAYER, "Игрок", "Настройки игрока"),
     OTHER(Category.OTHER, "Разное", "Различные настройки"),
     CONFIGS(null, "Конфиги", "Управление конфигами"),
     WAYPOINTS(null, "Метки", "Управление метками"),

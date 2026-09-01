@@ -36,6 +36,11 @@ public class WorldRender implements QuickImports {
         return buffer(FestLayers.textured(texture));
     }
 
+    /** Flat, depth-tested, translucent quads: hidden behind blocks and mobs. */
+    public VertexConsumer occludedQuads() {
+        return buffer(FestLayers.OCCLUDED_QUADS);
+    }
+
     public VertexConsumer lines() {
         return buffer(FestLayers.DEBUG_LINES);
     }

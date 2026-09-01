@@ -28,6 +28,7 @@ public class ModuleManager {
                 DynamicIslandModule.getInstance(),
                 InventoryHudModule.getInstance(),
                 ScoreboardHudModule.getInstance(),
+                SaturationModule.getInstance(),
                 StatsHudModule.getInstance(),
                 
                 // RENDER

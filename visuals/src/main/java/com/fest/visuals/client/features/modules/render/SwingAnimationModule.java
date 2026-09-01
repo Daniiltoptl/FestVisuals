@@ -82,6 +82,8 @@ public class SwingAnimationModule extends Module {
             boolean bl = hand == InteractionHand.MAIN_HAND;
             HumanoidArm arm = bl ? player.getMainArm() : player.getMainArm().getOpposite();
             matrices.pushPose();
+
+            ViewModelModule.getInstance().apply(matrices, arm);
             if (item.is(Items.CROSSBOW)) {
                 boolean bl2 = CrossbowItem.isCharged(item);
                 boolean bl3 = arm == HumanoidArm.RIGHT;
@@ -123,15 +125,6 @@ public class SwingAnimationModule extends Module {
                 this.renderItem(player, item, bl3 ? ItemDisplayContext.FIRST_PERSON_RIGHT_HAND : ItemDisplayContext.FIRST_PERSON_LEFT_HAND, matrices, queue, light);
             } else {
                 boolean bl2 = arm == HumanoidArm.RIGHT;
-
-                ViewModelModule viewModel = ViewModelModule.getInstance();
-                if (viewModel.isEnabled()) {
-                    if (bl2) {
-                        matrices.translate(viewModel.rightX.getValue().doubleValue(), viewModel.rightY.getValue().doubleValue(), viewModel.rightZ.getValue().doubleValue());
-                    } else {
-                        matrices.translate(-viewModel.leftX.getValue().doubleValue(), viewModel.leftY.getValue().doubleValue(), viewModel.leftZ.getValue().doubleValue());
-                    }
-                }
 
                 if (player.isUsingItem() && player.getUseItemRemainingTicks() > 0 && player.getUsedItemHand() == hand) {
                     int l = bl2 ? 1 : -1;

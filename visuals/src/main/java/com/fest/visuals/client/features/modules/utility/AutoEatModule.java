@@ -10,33 +10,26 @@ import com.fest.visuals.api.event.events.client.TickEvent;
 import com.fest.visuals.api.module.Category;
 import com.fest.visuals.api.module.Module;
 import com.fest.visuals.api.module.ModuleRegister;
-import com.fest.visuals.api.module.setting.BooleanSetting;
 import com.fest.visuals.api.module.setting.SliderSetting;
+import com.fest.visuals.api.utils.player.ItemUseHelper;
 
 /**
- * Eats when hunger drops to the configured level.
+ * Eats once hunger drops to the configured level, then puts the previous slot back.
  *
- * <p>Eating takes about thirty ticks and only continues while the food stays selected, so the
- * module switches once, waits for the use to finish, and only then puts the previous slot back.
- * Re-issuing the use every tick — the previous behaviour — restarted the animation forever and
- * the player never actually ate.
+ * <p>Same machinery as Auto Invisible: the slot change needs a tick to reach the server and the
+ * use key has to stay held for the whole animation, otherwise Minecraft cancels it immediately.
  */
 @ModuleRegister(name = "Auto Eat", desc = "Ест, когда голод падает ниже порога", category = Category.OTHER)
 public class AutoEatModule extends Module {
     @Getter private static final AutoEatModule instance = new AutoEatModule();
 
-    public final SliderSetting hunger = new SliderSetting("Порог голода").value(14f).range(1f, 19f).step(1f);
-    public final BooleanSetting whileSaturated = new BooleanSetting("Есть при насыщении").value(false);
+    public final SliderSetting hunger = new SliderSetting("Порог голода").value(16f).range(1f, 19f).step(1f);
 
-    /** Item use does not report as started until the tick after it is requested. */
-    private static final int START_GRACE = 6;
-
-    private boolean eating;
-    private int returnSlot = -1;
-    private int grace;
+    private final ItemUseHelper use = new ItemUseHelper();
+    private int cooldown;
 
     public AutoEatModule() {
-        addSettings(hunger, whileSaturated);
+        addSettings(hunger);
     }
 
     @Override
@@ -46,46 +39,26 @@ public class AutoEatModule extends Module {
 
     @Override
     public void onDisable() {
-        stop();
+        use.cancel();
+        cooldown = 0;
     }
 
     private void tick() {
         if (mc.player == null || mc.gameMode == null) return;
 
-        if (eating) {
-            if (grace-- > 0) return;
-            if (mc.player.isUsingItem()) return;
-
-            // Full again, or the stack ran out — either way this pass is done.
-            stop();
+        if (use.isBusy()) {
+            if (use.tick()) cooldown = 10;
             return;
         }
 
+        if (cooldown-- > 0) return;
         if (mc.gui.screen() != null || mc.player.isUsingItem()) return;
         if (mc.player.getFoodData().getFoodLevel() > hunger.getValue().intValue()) return;
-        if (!whileSaturated.getValue() && mc.player.getFoodData().getSaturationLevel() > 0f
-                && mc.player.getFoodData().getFoodLevel() >= 18) {
-            return;
-        }
 
         int slot = findFoodSlot();
         if (slot == -1) return;
 
-        returnSlot = mc.player.getInventory().getSelectedSlot();
-        mc.player.getInventory().setSelectedSlot(slot);
-        mc.gameMode.useItem(mc.player, InteractionHand.MAIN_HAND);
-
-        eating = true;
-        grace = START_GRACE;
-    }
-
-    private void stop() {
-        if (mc.player != null && returnSlot >= 0) {
-            mc.player.getInventory().setSelectedSlot(returnSlot);
-        }
-        eating = false;
-        returnSlot = -1;
-        grace = 0;
+        use.start(slot, InteractionHand.MAIN_HAND);
     }
 
     private int findFoodSlot() {

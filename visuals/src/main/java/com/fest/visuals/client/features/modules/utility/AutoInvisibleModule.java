@@ -12,18 +12,22 @@ import com.fest.visuals.api.event.events.client.TickEvent;
 import com.fest.visuals.api.module.Category;
 import com.fest.visuals.api.module.Module;
 import com.fest.visuals.api.module.ModuleRegister;
+import com.fest.visuals.api.utils.player.ItemUseHelper;
 
+/**
+ * Switches to an invisibility potion, drinks it, and switches back.
+ *
+ * <p>Two things made the previous version look like it did nothing. The slot change is only sent
+ * to the server on the next client tick, so a use issued in the same tick was applied to the old
+ * item; and Minecraft releases the item every tick the use key is not held, which cancelled the
+ * drink one tick after it started. Both are handled by {@link ItemUseHelper}.
+ */
 @ModuleRegister(name = "Auto Invisible", desc = "Автоматически пьёт зелье невидимости", category = Category.OTHER)
 public class AutoInvisibleModule extends Module {
     @Getter private static final AutoInvisibleModule instance = new AutoInvisibleModule();
 
-    /** Item use does not report as started until the tick after it is requested. */
-    private static final int START_GRACE = 6;
-
-    private boolean drinking;
-    private int returnSlot = -1;
+    private final ItemUseHelper use = new ItemUseHelper();
     private int cooldown;
-    private int grace;
 
     @Override
     public void onEvent() {
@@ -33,18 +37,8 @@ public class AutoInvisibleModule extends Module {
     private void tick() {
         if (mc.player == null || mc.gameMode == null) return;
 
-        // Drinking takes 32 ticks. The slot must stay selected for all of them, so the swap back
-        // waits until the player has actually stopped using the item.
-        if (drinking) {
-            if (grace-- > 0) return;
-            if (mc.player.isUsingItem()) return;
-
-            if (returnSlot >= 0) {
-                mc.player.getInventory().setSelectedSlot(returnSlot);
-                returnSlot = -1;
-            }
-            drinking = false;
-            cooldown = 10;
+        if (use.isBusy()) {
+            if (use.tick()) cooldown = 20;
             return;
         }
 
@@ -55,20 +49,12 @@ public class AutoInvisibleModule extends Module {
         int slot = findInvisibilitySlot();
         if (slot == -1) return;
 
-        returnSlot = mc.player.getInventory().getSelectedSlot();
-        mc.player.getInventory().setSelectedSlot(slot);
-        mc.gameMode.useItem(mc.player, InteractionHand.MAIN_HAND);
-        drinking = true;
-        grace = START_GRACE;
+        use.start(slot, InteractionHand.MAIN_HAND);
     }
 
     @Override
     public void onDisable() {
-        if (drinking && mc.player != null && returnSlot >= 0) {
-            mc.player.getInventory().setSelectedSlot(returnSlot);
-        }
-        drinking = false;
-        returnSlot = -1;
+        use.cancel();
         cooldown = 0;
     }
 
