@@ -89,7 +89,10 @@ public class StringComponent extends SettingComponent {
         // Long values scroll with the caret instead of spilling out of the box.
         float shift = focused && textWidth > room ? textWidth - room : 0f;
 
-        ScissorUtil.start(matrices, getX(), boxY, getWidth() - scaled(3f), boxH);
+        if (setting.isSecret()) drawEye(matrices, boxY, boxH, mouseX, mouseY, full);
+
+        ScissorUtil.start(matrices, getX(), boxY,
+                getWidth() - scaled(3f) - (setting.isSecret() ? eyeSize() + scaled(3f) : 0f), boxH);
         Fonts.PS_MEDIUM.drawText(matrices, shown, textX - shift, textY, fontSize, textColor);
 
         if (focused) {
@@ -102,13 +105,58 @@ public class StringComponent extends SettingComponent {
     }
 
     private String display() {
-        if (!setting.isSecret()) return buffer.toString();
+        if (!setting.isSecret() || setting.isRevealed()) return buffer.toString();
         return "•".repeat(buffer.length());
+    }
+
+    private float eyeSize() {
+        return scaled(11f);
+    }
+
+    /** The reveal button, drawn inside the right edge of the field. */
+    private boolean hoveredEye(double mouseX, double mouseY) {
+        if (!setting.isSecret()) return false;
+
+        float boxY = getY() + scaled(7f) + scaled(4f);
+        float boxH = scaled(15f);
+        float size = eyeSize();
+        return MouseUtil.isHovered(mouseX, mouseY, getX() + getWidth() - size - scaled(3f),
+                boxY + (boxH - size) / 2f, size, size);
+    }
+
+    private void drawEye(PoseStack matrices, float boxY, float boxH, int mouseX, int mouseY, int full) {
+        float size = eyeSize();
+        float x = getX() + getWidth() - size - scaled(3f);
+        float y = boxY + (boxH - size) / 2f;
+
+        boolean over = hoveredEye(mouseX, mouseY);
+        Color tint = setting.isRevealed()
+                ? ColorUtil.setAlpha(UIColors.primary(), full)
+                : UIColors.inactiveTextColor((int) (full * (over ? 1f : 0.7f)));
+
+        // An eye: a lens with a pupil, struck through while the value is hidden.
+        float lensH = size * 0.52f;
+        RenderUtil.RECT.draw(matrices, x, y + (size - lensH) / 2f, size, lensH, lensH / 2f, tint);
+
+        float pupil = lensH * 0.5f;
+        RenderUtil.RECT.draw(matrices, x + (size - pupil) / 2f, y + (size - pupil) / 2f, pupil, pupil, pupil / 2f,
+                ColorUtil.setAlpha(UIColors.surfaceInner(), full));
+
+        if (!setting.isRevealed()) {
+            float thick = scaled(1f);
+            RenderUtil.RECT.draw(matrices, x, y + size / 2f - thick / 2f, size, thick, thick / 2f, tint);
+        }
     }
 
     @Override
     public void mouseClicked(double mouseX, double mouseY, int button) {
         if (button != 0) return;
+
+        if (hoveredEye(mouseX, mouseY)) {
+            setting.setRevealed(!setting.isRevealed());
+            return;
+        }
+
         boolean hit = MouseUtil.isHovered(mouseX, mouseY, getX(), getY(), getWidth(), getHeight());
         if (focused && !hit) commit();
         focused = hit;

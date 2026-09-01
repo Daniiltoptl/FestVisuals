@@ -40,8 +40,6 @@ public class ChinaHatModule extends Module {
             if (mc.level == null || mc.player == null) return;
 
             PoseStack matrixStack = event.matrixStack();
-            // Without a collector every submitted vertex is dropped on the floor.
-            RenderUtil.WORLD.beginFrame(event.collector());
             RenderUtil.WORLD.startRender(matrixStack);
 
             for (AbstractClientPlayer player : mc.level.players()) {
@@ -54,7 +52,6 @@ public class ChinaHatModule extends Module {
             }
 
             RenderUtil.WORLD.endRender(matrixStack);
-            RenderUtil.WORLD.finishFrame();
         }));
 
         addEvents(renderEvent);

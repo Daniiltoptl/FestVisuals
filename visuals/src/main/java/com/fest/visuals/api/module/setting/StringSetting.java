@@ -52,6 +52,9 @@ public class StringSetting extends Setting<String> {
         return this;
     }
 
+    /** Flipped by the eye button in the click GUI; never saved. */
+    @lombok.Setter private transient boolean revealed;
+
     public boolean isEmpty() {
         return value == null || value.isEmpty();
     }

@@ -17,9 +17,13 @@ public class WorldRender implements QuickImports {
         this.batches.clear();
     }
 
+    /**
+     * Flushes whatever is queued. The collector is deliberately kept: several renderers submit
+     * inside the same pass, and one of them calling this used to leave every later renderer with
+     * nothing to submit into. It is replaced on the next {@link #beginFrame}.
+     */
     public void finishFrame() {
         submitBatches();
-        this.collector = null;
     }
 
     public VertexConsumer buffer(RenderType layer) {

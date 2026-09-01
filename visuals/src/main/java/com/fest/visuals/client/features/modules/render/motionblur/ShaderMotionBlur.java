@@ -61,7 +61,7 @@ public class ShaderMotionBlur {
             return false;
         }
         if (FabricLoader.getInstance().isModLoaded("iris")) {
-            TextUtil.sendMessage("Не могу нах включить, потому что Iris стоит!");
+            TextUtil.sendMessage("Motion Blur не работает вместе с Iris — шейдеры занимают тот же проход.");
             config.setEnabled(false);
             return false;
         }

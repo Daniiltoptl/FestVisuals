@@ -48,7 +48,9 @@ public class TrailsModule extends Module {
     @Getter private static final TrailsModule instance = new TrailsModule();
 
     private final SliderSetting length = new SliderSetting("Length").value(1500f).range(500f, 3000f).step(100f);
-    private final SliderSetting size = new SliderSetting("Size").value(0.2f).range(0.05f, 0.3f).step(0.01f);
+    private final SliderSetting size = new SliderSetting("Размер").value(0.2f).range(0.05f, 0.3f).step(0.01f);
+    private final SliderSetting stretch = new SliderSetting("Высота").value(2.2f).range(0.5f, 6f).step(0.1f);
+    private final SliderSetting narrow = new SliderSetting("Ширина").value(0.35f).range(0.1f, 2f).step(0.05f);
     private final BooleanSetting renderInFirstPerson = new BooleanSetting("In first person").value(false);
     private final BooleanSetting physics = new BooleanSetting("Physics").value(true);
     private final SliderSetting fadeTime = new SliderSetting("Fade Time").value(250f).range(100f, 1000f).step(50f);
@@ -58,7 +60,7 @@ public class TrailsModule extends Module {
 
     // ета кагуне как у канеки курва
     public TrailsModule() {
-        addSettings(length, size, renderInFirstPerson, physics, fadeTime);
+        addSettings(length, size, stretch, narrow, renderInFirstPerson, physics, fadeTime);
     }
 
     @Override
@@ -145,11 +147,14 @@ public class TrailsModule extends Module {
         matrixStack.mulPose(Axis.YP.rotationDegrees(-gameRendererCamera.yRot()));
         matrixStack.mulPose(Axis.XP.rotationDegrees(gameRendererCamera.xRot()));
 
+        float halfWidth = bloomSize * narrow.getValue();
+        float halfHeight = bloomSize * stretch.getValue();
+
         VertexConsumer bufferBuilder = RenderUtil.WORLD.textured(bloomTexture);
-        bufferBuilder.addVertex(matrix, bloomSize, -bloomSize, 0f).setUv(0f, 1f).setColor(color.getRGB());
-        bufferBuilder.addVertex(matrix, -bloomSize, -bloomSize, 0f).setUv(1f, 1f).setColor(color.getRGB());
-        bufferBuilder.addVertex(matrix, -bloomSize, bloomSize, 0f).setUv(1f, 0f).setColor(color.getRGB());
-        bufferBuilder.addVertex(matrix, bloomSize, bloomSize, 0f).setUv(0f, 0f).setColor(color.getRGB());
+        bufferBuilder.addVertex(matrix, halfWidth, -halfHeight, 0f).setUv(0f, 1f).setColor(color.getRGB());
+        bufferBuilder.addVertex(matrix, -halfWidth, -halfHeight, 0f).setUv(1f, 1f).setColor(color.getRGB());
+        bufferBuilder.addVertex(matrix, -halfWidth, halfHeight, 0f).setUv(1f, 0f).setColor(color.getRGB());
+        bufferBuilder.addVertex(matrix, halfWidth, halfHeight, 0f).setUv(0f, 0f).setColor(color.getRGB());
 
     }
 

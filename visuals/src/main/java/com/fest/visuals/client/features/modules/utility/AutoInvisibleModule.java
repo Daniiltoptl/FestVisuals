@@ -17,9 +17,13 @@ import com.fest.visuals.api.module.ModuleRegister;
 public class AutoInvisibleModule extends Module {
     @Getter private static final AutoInvisibleModule instance = new AutoInvisibleModule();
 
+    /** Item use does not report as started until the tick after it is requested. */
+    private static final int START_GRACE = 6;
+
     private boolean drinking;
     private int returnSlot = -1;
     private int cooldown;
+    private int grace;
 
     @Override
     public void onEvent() {
@@ -32,6 +36,7 @@ public class AutoInvisibleModule extends Module {
         // Drinking takes 32 ticks. The slot must stay selected for all of them, so the swap back
         // waits until the player has actually stopped using the item.
         if (drinking) {
+            if (grace-- > 0) return;
             if (mc.player.isUsingItem()) return;
 
             if (returnSlot >= 0) {
@@ -54,6 +59,7 @@ public class AutoInvisibleModule extends Module {
         mc.player.getInventory().setSelectedSlot(slot);
         mc.gameMode.useItem(mc.player, InteractionHand.MAIN_HAND);
         drinking = true;
+        grace = START_GRACE;
     }
 
     @Override

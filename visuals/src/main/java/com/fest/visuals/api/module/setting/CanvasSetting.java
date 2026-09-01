@@ -13,8 +13,8 @@ import java.util.function.Supplier;
  */
 @Getter
 public class CanvasSetting extends Setting<String> {
-    /** Odd, so the grid has a true centre pixel to build a crosshair around. */
-    public static final int SIZE = 17;
+    /** The grid the crosshair is painted on. */
+    public static final int SIZE = 16;
 
     public CanvasSetting(String name) {
         super(name);

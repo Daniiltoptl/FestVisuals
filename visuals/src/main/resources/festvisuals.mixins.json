@@ -36,6 +36,7 @@
     "other.MixinWindow",
     "render.MixinBossBarHud",
     "render.MixinFogRenderer",
+    "render.MixinCamera",
     "render.MixinGameRenderer",
     "render.MixinHeldItemRenderer",
     "render.MixinInGameHud",

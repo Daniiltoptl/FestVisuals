@@ -33,7 +33,6 @@ public class ModuleManager {
                 // RENDER
                 ChinaHatModule.getInstance(),
                 BlockHighlightModule.getInstance(),
-                AnimationsModule.getInstance(),
                 AmbienceModule.getInstance(),
                 CrosshairModule.getInstance(),
                 JumpCircleModule.getInstance(),

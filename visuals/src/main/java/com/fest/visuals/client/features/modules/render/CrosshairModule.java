@@ -35,7 +35,7 @@ public class CrosshairModule extends Module {
     @Getter private static final CrosshairModule instance = new CrosshairModule();
 
     public final ModeSetting style = new ModeSetting("Форма")
-            .value("Крест").values("Крест", "Точка", "Круг", "Свой рисунок");
+            .value("Свой рисунок").values("Крест", "Точка", "Круг", "Свой рисунок");
 
     public final SliderSetting gap = new SliderSetting("Отступ").value(3f).range(0f, 12f).step(1f)
             .setVisible(() -> style.is("Крест"));
@@ -57,14 +57,14 @@ public class CrosshairModule extends Module {
     public final ColorSetting entityColor = new ColorSetting("Цвет на существах")
             .value(new Color(255, 60, 60, 240)).setVisible(entityHighlight::getValue);
 
-    public final CanvasSetting canvas = new CanvasSetting("Рисунок")
-            .setVisible(() -> style.is("Свой рисунок"));
+    /** Always visible, and first in the card: it doubles as the preview of what is on screen. */
+    public final CanvasSetting canvas = new CanvasSetting("Рисунок");
 
     private final AnimationUtil highlightAnimation = new AnimationUtil();
 
     public CrosshairModule() {
-        addSettings(style, gap, length, thickness, dotSize, pixelSize,
-                color, outline, centreDot, entityHighlight, entityColor, canvas);
+        addSettings(canvas, style, gap, length, thickness, dotSize, pixelSize,
+                color, outline, centreDot, entityHighlight, entityColor);
     }
 
     @Override

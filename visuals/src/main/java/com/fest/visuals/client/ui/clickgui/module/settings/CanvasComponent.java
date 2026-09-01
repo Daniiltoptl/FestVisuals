@@ -39,8 +39,16 @@ public class CanvasComponent extends SettingComponent {
         return getY() + scaled(9f);
     }
 
-    private float buttonsY() {
+    private float previewY() {
         return gridY() + getWidth() + scaled(4f);
+    }
+
+    private float previewHeight() {
+        return scaled(26f);
+    }
+
+    private float buttonsY() {
+        return previewY() + previewHeight() + scaled(4f);
     }
 
     private float buttonHeight() {
@@ -49,7 +57,7 @@ public class CanvasComponent extends SettingComponent {
 
     @Override
     public void render(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
-        setHeight(scaled(9f) + getWidth() + scaled(4f) + buttonHeight());
+        setHeight(scaled(9f) + getWidth() + scaled(4f) + previewHeight() + scaled(4f) + buttonHeight());
 
         PoseStack matrices = RenderUtil.matrices();
         int full = (int) (getAlpha() * 255f);
@@ -81,9 +89,32 @@ public class CanvasComponent extends SettingComponent {
             }
         }
 
+        drawPreview(matrices, full);
+
         float half = (getWidth() - scaled(4f)) / 2f;
         drawButton(matrices, getX(), half, "Очистить", mouseX, mouseY, full);
         drawButton(matrices, getX() + half + scaled(4f), half, "Сброс", mouseX, mouseY, full);
+    }
+
+    /** The shape at roughly the size it appears on screen, so the grid is not the only judge. */
+    private void drawPreview(PoseStack matrices, int full) {
+        float height = previewHeight();
+        float top = previewY();
+
+        RenderUtil.RECT.draw(matrices, getX(), top, getWidth(), height, scaled(3f),
+                ColorUtil.setAlpha(Color.BLACK, (int) (full * 0.35f)));
+
+        float pixel = Math.max(1f, scaled(1.2f));
+        float originX = getX() + getWidth() / 2f - CanvasSetting.SIZE / 2f * pixel;
+        float originY = top + height / 2f - CanvasSetting.SIZE / 2f * pixel;
+
+        for (int row = 0; row < CanvasSetting.SIZE; row++) {
+            for (int column = 0; column < CanvasSetting.SIZE; column++) {
+                if (!setting.get(column, row)) continue;
+                RenderUtil.RECT.draw(matrices, originX + column * pixel, originY + row * pixel, pixel, pixel, 0f,
+                        ColorUtil.setAlpha(Color.WHITE, full));
+            }
+        }
     }
 
     private void drawButton(PoseStack matrices, float x, float width, String label, int mouseX, int mouseY, int full) {

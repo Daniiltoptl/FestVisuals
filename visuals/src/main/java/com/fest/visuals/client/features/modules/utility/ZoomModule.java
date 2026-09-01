@@ -17,19 +17,17 @@ import com.fest.visuals.api.utils.animation.Easing;
 /**
  * Hold a key to zoom; scroll to change how far.
  *
- * <p>Works by driving the field of view option rather than by patching the projection, which
- * keeps it compatible with anything else that reads the FOV (shaders, dynamic FOV effects). The
- * player's own setting is captured when the zoom starts and put back exactly when it ends, so a
- * crash or a disable mid-zoom cannot leave the view stuck.
- *
- * <p>The bind is a module setting, not the module bind, so holding it zooms instead of toggling.
+ * <p>The magnification is applied to the camera field of view in {@code MixinCamera}, not to the
+ * FOV option. The option validates what it is given and silently keeps the old value below its
+ * floor, which capped the zoom at roughly two times and made deeper scrolling look like the view
+ * springing back out.
  */
 @ModuleRegister(name = "Zoom", desc = "Приближает вид по зажатой клавише", category = Category.OTHER)
 public class ZoomModule extends Module {
     @Getter private static final ZoomModule instance = new ZoomModule();
 
     public final BindSetting key = new BindSetting("Клавиша").value(org.lwjgl.glfw.GLFW.GLFW_KEY_V);
-    public final SliderSetting factor = new SliderSetting("Кратность").value(4f).range(1.5f, 15f).step(0.5f);
+    public final SliderSetting factor = new SliderSetting("Кратность").value(4f).range(1.5f, 30f).step(0.5f);
     public final SliderSetting smoothness = new SliderSetting("Плавность").value(340f).range(60f, 900f).step(20f);
     public final BooleanSetting scroll = new BooleanSetting("Колёсиком").value(true);
     public final BooleanSetting slowSensitivity = new BooleanSetting("Замедлять мышь").value(true);
@@ -37,7 +35,6 @@ public class ZoomModule extends Module {
     private final AnimationUtil zoomAnimation = new AnimationUtil();
     private final AnimationUtil factorAnimation = new AnimationUtil();
 
-    private Integer originalFov;
     private Double originalSensitivity;
     private boolean zooming;
 
@@ -55,9 +52,10 @@ public class ZoomModule extends Module {
         restore();
     }
 
-    /** True while the key is held and the player is actually in the world. */
+    /** True while the key is held and the player is actually looking at the world. */
     private boolean shouldZoom() {
         if (mc.player == null || mc.level == null || mc.gui.screen() != null) return false;
+
         int bind = key.getValue();
         if (bind == -999) return false;
 
@@ -70,7 +68,6 @@ public class ZoomModule extends Module {
         boolean wanted = shouldZoom();
 
         if (wanted && !zooming) {
-            originalFov = mc.options.fov().get();
             originalSensitivity = mc.options.sensitivity().get();
             factorAnimation.setValue(factor.getValue());
             zooming = true;
@@ -82,50 +79,41 @@ public class ZoomModule extends Module {
 
         zoomAnimation.update();
         zoomAnimation.run(wanted ? 1.0 : 0.0, duration, wanted ? Easing.EXPO_OUT : Easing.CUBIC_OUT);
-        float progress = (float) zoomAnimation.getValue();
 
-        if (!wanted && progress <= 0.01f) {
+        // Magnification eases too, so a scroll glides to the new zoom instead of snapping.
+        factorAnimation.update();
+        factorAnimation.run(factor.getValue(), duration / 2L + 1L, Easing.EXPO_OUT);
+
+        if (!wanted && zoomAnimation.getValue() <= 0.01) {
             restore();
             return;
         }
 
-        // The magnification eases too, so a scroll glides to the new zoom instead of snapping and
-        // fighting the in/out animation for the same frame.
-        factorAnimation.update();
-        factorAnimation.run(factor.getValue(), duration / 2L + 1L, Easing.EXPO_OUT);
+        if (slowSensitivity.getValue() && originalSensitivity != null) {
+            mc.options.sensitivity().set(originalSensitivity * (1.0 - 0.7 * zoomAnimation.getValue()));
+        }
+    }
+
+    /**
+     * What the camera field of view is multiplied by. One means untouched, which is what every
+     * frame outside a zoom gets.
+     */
+    public float fovMultiplier() {
+        if (!isEnabled() || !zooming) return 1f;
+
+        float progress = (float) zoomAnimation.getValue();
         float smoothFactor = Math.max(1f, (float) factorAnimation.getValue());
 
-        float target = originalFov / smoothFactor;
-        int fov = Math.max(1, Math.round(Mth.lerp(progress, originalFov, target)));
-
-        if (mc.options.fov().get() != fov) {
-            mc.options.fov().set(fov);
-
-            // The option validates what it is given and keeps the old value when the number is
-            // below its floor. Detect that instead of writing into the void every frame, and pin
-            // the magnification to whatever the option actually reached — scrolling past it used
-            // to look like the zoom sliding back out.
-            int applied = mc.options.fov().get();
-            if (applied > fov && progress > 0.9f) {
-                float reachable = originalFov / (float) Math.max(1, applied);
-                if (reachable < factor.getValue()) {
-                    factor.setValue(Math.max(factor.getMin(), reachable));
-                    factorAnimation.setValue(reachable);
-                }
-            }
-        }
-
-        if (slowSensitivity.getValue()) {
-            double eased = originalSensitivity * (1.0 - 0.7 * progress);
-            mc.options.sensitivity().set(eased);
-        }
+        return 1f / Mth.lerp(progress, 1f, smoothFactor);
     }
 
     /** Scroll while zoomed changes the magnification. Called from the mouse mixin. */
     public boolean onScroll(double amount) {
         if (!isEnabled() || !zooming || !scroll.getValue()) return false;
 
-        float next = factor.getValue() + (float) amount * 0.5f;
+        // Step proportionally: one notch should feel the same at 2x as it does at 20x.
+        float current = factor.getValue();
+        float next = current + (float) amount * Math.max(0.5f, current * 0.15f);
         factor.setValue(Mth.clamp(next, factor.getMin(), factor.getMax()));
         return true;
     }
@@ -135,10 +123,8 @@ public class ZoomModule extends Module {
     }
 
     private void restore() {
-        if (originalFov != null) mc.options.fov().set(originalFov);
         if (originalSensitivity != null) mc.options.sensitivity().set(originalSensitivity);
 
-        originalFov = null;
         originalSensitivity = null;
         zooming = false;
         zoomAnimation.setValue(0.0);
