@@ -53,6 +53,7 @@ public class ModuleManager {
                 AutoSprintModule.getInstance(),
                 DeathCordsModule.getInstance(),
                 FastScrollerModule.getInstance(),
+                JarvisModule.getInstance(),
                 ZoomModule.getInstance(),
                 NameProtectModule.getInstance(),
                 SoundsModule.getInstance()
