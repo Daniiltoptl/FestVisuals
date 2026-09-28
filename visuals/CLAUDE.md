@@ -19,7 +19,8 @@ There are no unit tests in this project (Gradle's `test` task is set to `failOnN
 - `archivesName = evaware`, `group = sweetie.evaware`, `mod_version` bumped in `gradle.properties`. Mod id in `fabric.mod.json` is `festvisuals`; the entrypoint is `com.fest.visuals.FestVisuals`.
 - Access widener: `src/main/resources/festvisuals.accesswidener` (points at obfuscated mappings — `net/minecraft/...` intermediary names).
 - Mixin config: `src/main/resources/festvisuals.mixins.json`, package `com.fest.visuals.inject` (client-only, JAVA_21 compat).
-- Bundled runtime deps (DJL + PyTorch CPU, CatBoost, Discord RPC) live in a custom Gradle `bundled` configuration and are shaded into the final jar by the `jar` task — treat them as first-class dependencies.
+- Discord RPC is shaded into the final jar through the custom Gradle `bundled` configuration. (DJL/PyTorch and CatBoost used to be bundled too; nothing referenced them and they made the jar ~118 MB, so they were removed.)
+- Performance mods (Sodium, Lithium, FerriteCore, ImmediatelyFast, Dynamic FPS) are nested as Jar-in-Jar via `include` from the Modrinth maven, pinned by Modrinth version id in `gradle.properties`. Fabric Loader keeps one copy per mod id, so a player's own copy wins when it is newer or required by another mod (Iris pins Sodium `0.9.x`). Only bundle mods whose licence allows redistribution — EntityCulling (tr7zw Protective) and MoreCulling (GPL-3) are excluded on purpose.
 
 ## Architecture
 

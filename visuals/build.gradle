@@ -39,6 +39,11 @@ repositories {
 		name = "Jitpack"
 		url = uri("https://jitpack.io")
 	}
+	maven {
+		name = "Modrinth"
+		url = uri("https://api.modrinth.com/maven")
+		content { includeGroup "maven.modrinth" }
+	}
 }
 
 configurations {
@@ -57,13 +62,24 @@ dependencies {
 	compileOnly "org.projectlombok:lombok:${project.lombok_version}"
 	annotationProcessor "org.projectlombok:lombok:${project.lombok_version}"
 
-	bundled "ai.catboost:catboost-common:${project.ai_version}"
-	bundled "ai.catboost:catboost-prediction:${project.ai_version}"
-	bundled "ai.djl:api:${project.djl_version}"
-	bundled "ai.djl.pytorch:pytorch-engine:${project.djl_version}"
-	bundled "ai.djl.pytorch:pytorch-jni:${project.pytorch_native_version}-${project.djl_version}"
-	bundled "ai.djl.pytorch:pytorch-native-cpu:${project.pytorch_native_version}:win-x86_64"
 	bundled "com.github.donyka:discord-rpc:${project.drpc_version}"
+
+	// Performance mods shipped inside our jar (Jar-in-Jar). Fabric Loader keeps a single copy of
+	// each mod id and prefers whatever satisfies every dependency, newest first — so when a player
+	// already has their own Sodium (or Lithium, ...) in the mods folder, the bundled one simply
+	// stands down, and Iris' version constraints on Sodium are still honoured.
+	// Licences allow redistribution with the licence kept (each jar carries its own): Sodium
+	// (PolyForm Shield), Lithium and ImmediatelyFast (LGPL), FerriteCore and Dynamic FPS (MIT).
+	// EntityCulling and MoreCulling are deliberately not bundled: their licences forbid it or
+	// would pull the whole mod under the GPL.
+	["sodium:${project.sodium_version}",
+	 "lithium:${project.lithium_version}",
+	 "ferrite-core:${project.ferritecore_version}",
+	 "immediatelyfast:${project.immediatelyfast_version}",
+	 "dynamic-fps:${project.dynamicfps_version}"].each { coordinate ->
+		include "maven.modrinth:${coordinate}"
+		runtimeOnly "maven.modrinth:${coordinate}"
+	}
 
 	implementation "org.json:json:${project.json_version}"
 }

@@ -39,8 +39,10 @@ public class KawaseBlurProgram implements QuickImports {
         fbos.forEach(RenderTarget::destroyBuffers);
         fbos.clear();
 
+        // Dual-filter Kawase: each level is half the size of the one before it. Every pass used to
+        // run at full window resolution, which cost several times more for the same result.
         for (int i = 0; i <= InterfaceConfig.getPasses(); i++) {
-            fbos.add(createFbo());
+            fbos.add(createFbo(i + 1));
         }
     }
 
@@ -63,13 +65,18 @@ public class KawaseBlurProgram implements QuickImports {
     }
 
     private void applyBlurPass(RenderPipeline pipeline, RenderTarget source, RenderTarget destination, int pass, int actualPasses) {
+        // The offset is in source texels. A smaller level has bigger texels, so scale it down to
+        // keep the blur the same width on screen as it was at full resolution.
+        float texelScale = source.width / (float) Math.max(1, mc.getWindow().getWidth());
         FestRenderer.getInstance().fullscreen(pipeline, destination, source.getColorTextureView(), FestTextures.sampler(), FestUniform.of(
                 0f, 0f, 0f, 0f,
-                0.5f / source.width, 0.5f / source.height, InterfaceConfig.getOffset() * (pass / (float) actualPasses), 0f
+                0.5f / source.width, 0.5f / source.height, InterfaceConfig.getOffset() * (pass / (float) actualPasses) * texelScale, 0f
         ));
     }
 
-    private TextureTarget createFbo() {
-        return new TextureTarget("FestVisuals Blur", mc.getWindow().getWidth(), mc.getWindow().getHeight(), false, mc.gameRenderer.mainRenderTarget().getColorTexture().getFormat());
+    private TextureTarget createFbo(int level) {
+        int width = Math.max(1, mc.getWindow().getWidth() >> level);
+        int height = Math.max(1, mc.getWindow().getHeight() >> level);
+        return new TextureTarget("FestVisuals Blur", width, height, false, mc.gameRenderer.mainRenderTarget().getColorTexture().getFormat());
     }
 }
