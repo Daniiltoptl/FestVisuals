@@ -69,6 +69,11 @@ public class ClickGuiWaypoints {
         RenderUtil.RECT.draw(matrices, x, y, chkBoxSize, chkBoxSize, ClickGuiLayout.scaled(2f), autoWp ? UIColors.positiveColor(full) : UIColors.surfaceInner(full));
         Fonts.PS_MEDIUM.drawText(matrices, "Auto Death Waypoint", x + chkBoxSize + ClickGuiLayout.scaled(4f), y + chkBoxSize/2f - ClickGuiLayout.scaled(2.5f), ClickGuiLayout.scaled(5f), UIColors.textColor(full));
 
+        float eventX = x + width / 2f;
+        boolean autoEvents = WaypointManager.getInstance().isAutoEventWaypoints();
+        RenderUtil.RECT.draw(matrices, eventX, y, chkBoxSize, chkBoxSize, ClickGuiLayout.scaled(2f), autoEvents ? UIColors.positiveColor(full) : UIColors.surfaceInner(full));
+        Fonts.PS_MEDIUM.drawText(matrices, "Метки ивентов FT", eventX + chkBoxSize + ClickGuiLayout.scaled(4f), y + chkBoxSize/2f - ClickGuiLayout.scaled(2.5f), ClickGuiLayout.scaled(5f), UIColors.textColor(full));
+
         y += ClickGuiLayout.scaled(16f);
         
         float btnW = ClickGuiLayout.scaled(40f);
@@ -117,7 +122,12 @@ public class ClickGuiWaypoints {
             }
             
             Fonts.PS_BOLD.drawText(matrices, wp.getName(), x + ClickGuiLayout.scaled(18f), row + ClickGuiLayout.scaled(4f), ClickGuiLayout.scaled(6f), UIColors.textColor(full));
-            Fonts.PS_MEDIUM.drawText(matrices, String.format("%.0f, %.0f, %.0f", wp.getX(), wp.getY(), wp.getZ()), x + ClickGuiLayout.scaled(18f), row + ClickGuiLayout.scaled(11f), ClickGuiLayout.scaled(4.5f), UIColors.inactiveTextColor(full));
+            String coords = String.format("%.0f, %.0f, %.0f", wp.getX(), wp.getY(), wp.getZ());
+            if (wp.getExpiresAt() != 0) {
+                long left = Math.max(0, (wp.getExpiresAt() - System.currentTimeMillis()) / 1000);
+                coords += String.format("  ·  %d:%02d", left / 60, left % 60);
+            }
+            Fonts.PS_MEDIUM.drawText(matrices, coords, x + ClickGuiLayout.scaled(18f), row + ClickGuiLayout.scaled(11f), ClickGuiLayout.scaled(4.5f), UIColors.inactiveTextColor(full));
             
             float delX = x + width - ClickGuiLayout.scaled(14f);
             if (Icons.TRASH != null) {
@@ -146,6 +156,11 @@ public class ClickGuiWaypoints {
         float chkBoxSize = ClickGuiLayout.scaled(8f);
         if (MouseUtil.isHovered(mouseX, mouseY, x, y, chkBoxSize, chkBoxSize)) {
             WaypointManager.getInstance().setAutoDeathWaypoint(!WaypointManager.getInstance().isAutoDeathWaypoint());
+            WaypointManager.getInstance().save();
+            return true;
+        }
+        if (MouseUtil.isHovered(mouseX, mouseY, x + width / 2f, y, chkBoxSize + ClickGuiLayout.scaled(70f), chkBoxSize)) {
+            WaypointManager.getInstance().setAutoEventWaypoints(!WaypointManager.getInstance().isAutoEventWaypoints());
             WaypointManager.getInstance().save();
             return true;
         }

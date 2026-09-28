@@ -27,6 +27,8 @@ public class WaypointManager implements QuickImports {
 
     @Getter private final List<Waypoint> waypoints = new ArrayList<>();
     @Getter @Setter private boolean autoDeathWaypoint = true;
+    /** FunTime event announcements in chat become temporary marks. */
+    @Getter @Setter private boolean autoEventWaypoints = true;
     private File file;
     private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
     
@@ -36,6 +38,13 @@ public class WaypointManager implements QuickImports {
         file = new File(ClientInfo.CONFIG_PATH_OTHER, "waypoints.json");
         load();
         UpdateEvent.getInstance().subscribe(new com.fest.visuals.api.event.Listener<>(this::onUpdate));
+        com.fest.visuals.api.event.events.client.PacketEvent.getInstance().subscribe(new com.fest.visuals.api.event.Listener<>(event -> {
+            if (!autoEventWaypoints || !event.isReceive()) return;
+            String text = com.fest.visuals.api.utils.other.ChatPacketUtil.extractText(event.packet());
+            if (text.isEmpty()) return;
+            // Packets arrive on the network thread; waypoints are touched by the render thread.
+            mc.execute(() -> FtEventWaypoints.onChat(text));
+        }));
     }
 
     public void addWaypoint(Waypoint wp) {
@@ -50,6 +59,9 @@ public class WaypointManager implements QuickImports {
 
     public void onUpdate(UpdateEvent event) {
         if (mc.player == null) return;
+
+        long now = System.currentTimeMillis();
+        if (waypoints.removeIf(wp -> wp.getExpiresAt() != 0 && wp.getExpiresAt() < now)) save();
         
         boolean isDead = !mc.player.isAlive();
         if (isDead && !deadLastTick && autoDeathWaypoint) {
@@ -64,6 +76,7 @@ public class WaypointManager implements QuickImports {
         try {
             JsonObject root = new JsonObject();
             root.addProperty("autoDeathWaypoint", autoDeathWaypoint);
+            root.addProperty("autoEventWaypoints", autoEventWaypoints);
             JsonArray arr = new JsonArray();
             for (Waypoint wp : waypoints) {
                 JsonObject obj = new JsonObject();
@@ -75,6 +88,7 @@ public class WaypointManager implements QuickImports {
                 obj.addProperty("dimension", wp.getDimension());
                 obj.addProperty("color", wp.getColor().getRGB());
                 obj.addProperty("icon", wp.getIcon());
+                if (wp.getExpiresAt() != 0) obj.addProperty("expiresAt", wp.getExpiresAt());
                 arr.add(obj);
             }
             root.add("waypoints", arr);
@@ -93,6 +107,9 @@ public class WaypointManager implements QuickImports {
             JsonObject root = gson.fromJson(reader, JsonObject.class);
             reader.close();
 
+            if (root.has("autoEventWaypoints")) {
+                autoEventWaypoints = root.get("autoEventWaypoints").getAsBoolean();
+            }
             if (root.has("autoDeathWaypoint")) {
                 autoDeathWaypoint = root.get("autoDeathWaypoint").getAsBoolean();
             }
@@ -111,6 +128,9 @@ public class WaypointManager implements QuickImports {
                             new Color(obj.get("color").getAsInt(), true),
                             obj.get("icon").getAsString()
                     );
+                    if (obj.has("expiresAt")) {
+                        wp.setExpiresAt(obj.get("expiresAt").getAsLong());
+                    }
                     if (obj.has("id")) {
                         wp.setId(UUID.fromString(obj.get("id").getAsString()));
                     }

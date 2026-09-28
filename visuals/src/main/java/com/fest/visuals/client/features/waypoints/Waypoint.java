@@ -10,6 +10,8 @@ public class Waypoint {
     private String dimension;
     private Color color;
     private String icon;
+    /** Epoch millis after which the mark removes itself; zero for a permanent one. */
+    private long expiresAt;
 
     public Waypoint(String name, double x, double y, double z, String dimension, Color color, String icon) {
         this.id = UUID.randomUUID();
@@ -38,4 +40,6 @@ public class Waypoint {
     public void setColor(Color color) { this.color = color; }
     public String getIcon() { return icon; }
     public void setIcon(String icon) { this.icon = icon; }
+    public long getExpiresAt() { return expiresAt; }
+    public void setExpiresAt(long expiresAt) { this.expiresAt = expiresAt; }
 }
