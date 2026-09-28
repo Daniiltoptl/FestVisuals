@@ -41,6 +41,11 @@ public class WorldRender implements QuickImports {
         return buffer(FestLayers.OCCLUDED_QUADS);
     }
 
+    /** Flat translucent quads drawn on top of everything. */
+    public VertexConsumer xrayQuads() {
+        return buffer(FestLayers.XRAY_QUADS);
+    }
+
     public VertexConsumer lines() {
         return buffer(FestLayers.DEBUG_LINES);
     }

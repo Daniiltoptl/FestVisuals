@@ -68,15 +68,14 @@ public class MixinLevelRenderer {
             
             ci.cancel();
 
-            Vector3f cam = cameraPos(state.cameraRenderState);
             net.minecraft.core.BlockPos pos = outline.pos();
-            double x = pos.getX() - state.cameraRenderState.pos.x;
-            double y = pos.getY() - state.cameraRenderState.pos.y;
-            double z = pos.getZ() - state.cameraRenderState.pos.z;
+            double[] anim = module.animate(pos);
+            double x = pos.getX() - state.cameraRenderState.pos.x + anim[0];
+            double y = pos.getY() - state.cameraRenderState.pos.y + anim[1];
+            double z = pos.getZ() - state.cameraRenderState.pos.z + anim[2];
+            float visible = (float) anim[3];
 
-            java.awt.Color c = module.mode.is("Кастомный")
-                    ? module.color.getValue()
-                    : new java.awt.Color(255, 120, 0, 200);
+            java.awt.Color c = module.outlineColor();
 
             VoxelShape shape = outline.shape();
             RenderUtil.WORLD.beginFrame(collector);
@@ -89,7 +88,19 @@ public class MixinLevelRenderer {
             // to one pixel, which left the slider doing nothing, and lines thin out with distance
             // unevenly; a box has the same thickness on every edge.
             float half = Math.max(0.2f, module.lineWidth.getValue()) * 0.004f;
-            int argb = c.getRGB();
+            int argb = (Math.round(c.getAlpha() * visible) << 24) | (c.getRGB() & 0xFFFFFF);
+
+            if (module.fill.getValue()) {
+                VertexConsumer fillBuffer = RenderUtil.WORLD.occludedQuads();
+                float breathe = (float) (0.75 + 0.25 * Math.sin(System.currentTimeMillis() / 300.0));
+                int fillArgb = (Math.round(255 * module.fillAlpha.getValue() * breathe * visible) << 24) | (c.getRGB() & 0xFFFFFF);
+                for (AABB box : shape.toAabbs()) {
+                    float e = 0.002f;
+                    festvisuals$bar(fillBuffer, matrix, fillArgb,
+                            (float) (x + box.minX) - e, (float) (y + box.minY) - e, (float) (z + box.minZ) - e,
+                            (float) (x + box.maxX) + e, (float) (y + box.maxY) + e, (float) (z + box.maxZ) + e);
+                }
+            }
 
             for (AABB box : shape.toAabbs()) {
                 float minX = (float) (x + box.minX);

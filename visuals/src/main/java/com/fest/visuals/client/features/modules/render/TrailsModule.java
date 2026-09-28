@@ -164,7 +164,7 @@ public class TrailsModule extends Module {
         int argb = color.getRGB();
 
         VertexConsumer bufferBuilder = throughWalls.getValue()
-                ? RenderUtil.WORLD.buffer(com.fest.visuals.api.utils.render.pipeline.FestLayers.QUADS)
+                ? RenderUtil.WORLD.xrayQuads()
                 : RenderUtil.WORLD.occludedQuads();
         bufferBuilder.addVertex(matrix, halfWidth, -halfHeight, 0f).setColor(argb);
         bufferBuilder.addVertex(matrix, -halfWidth, -halfHeight, 0f).setColor(argb);

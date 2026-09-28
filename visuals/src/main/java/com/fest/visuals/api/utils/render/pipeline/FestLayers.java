@@ -55,6 +55,14 @@ public class FestLayers {
             .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false))
             .build());
 
+    /** Same flat quads, drawn over everything: for shapes meant to be seen through walls. */
+    private final RenderPipeline XRAY_QUADS_PIPELINE = RenderPipelines.register(RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
+            .withLocation(id("pipeline/xray_quads"))
+            .withCull(false)
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+            .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
+            .build());
+
     private final RenderPipeline DEBUG_LINES_PIPELINE = RenderPipelines.register(RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
             .withLocation(id("pipeline/esp_debug_lines"))
             .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR)
@@ -68,6 +76,7 @@ public class FestLayers {
     // 26.2 only supports vertex sorting for QUADS. Passing a sorting strategy
     // to DEBUG_LINES makes StagedVertexBuffer abort the entire render frame.
     public final RenderType DEBUG_LINES = RenderType.create("festvisuals_debug_lines", RenderSetup.builder(DEBUG_LINES_PIPELINE).createRenderSetup());
+    public final RenderType XRAY_QUADS = RenderType.create("festvisuals_xray_quads", RenderSetup.builder(XRAY_QUADS_PIPELINE).sortOnUpload().createRenderSetup());
     public final RenderType OCCLUDED_QUADS = RenderType.create("festvisuals_occluded_quads", RenderSetup.builder(OCCLUDED_QUADS_PIPELINE).sortOnUpload().createRenderSetup());
 
     private final Function<Identifier, RenderType> TEXTURED = Util.memoize(texture ->

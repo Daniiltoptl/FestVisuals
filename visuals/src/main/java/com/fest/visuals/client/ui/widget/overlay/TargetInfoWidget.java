@@ -3,6 +3,7 @@ package com.fest.visuals.client.ui.widget.overlay;
 import com.fest.visuals.api.utils.animation.AnimationUtil;
 import com.fest.visuals.api.utils.color.ColorUtil;
 import com.fest.visuals.api.utils.color.UIColors;
+import com.fest.visuals.api.utils.combat.CombatTracker;
 import com.fest.visuals.api.utils.math.MathUtil;
 import com.fest.visuals.api.utils.render.RenderUtil;
 import com.fest.visuals.client.features.modules.hud.TargetHudModule;
@@ -13,7 +14,9 @@ import java.time.Duration;
 import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.phys.EntityHitResult;
 
 public class TargetInfoWidget extends Widget {
     @Override
@@ -28,6 +31,9 @@ public class TargetInfoWidget extends Widget {
     private final AnimationUtil showAnimation = new AnimationUtil();
 
     private float healthAnimation = 0f;
+    /** The chunk of health just lost, lingering behind the bar before it drains away. */
+    private float ghostHealth = 0f;
+    private long ghostHoldUntil;
 
     private LivingEntity target;
 
@@ -42,7 +48,22 @@ public class TargetInfoWidget extends Widget {
 
         if (showAnimation.getValue() <= 0.0 || target == null) return;
 
-        healthAnimation = Mth.clamp(MathUtil.interpolate(healthAnimation, target.getHealth() / target.getMaxHealth(), 0.3f), 0f, 1f);
+        float healthRatio = Mth.clamp(target.getHealth() / target.getMaxHealth(), 0f, 1f);
+        healthAnimation = Mth.clamp(MathUtil.interpolate(healthAnimation, healthRatio, 0.3f), 0f, 1f);
+
+        long now = System.currentTimeMillis();
+        if (healthRatio > ghostHealth) {
+            ghostHealth = healthRatio;
+        } else if (healthRatio < ghostHealth - 0.001f && ghostHoldUntil == 0) {
+            ghostHoldUntil = now + 350;
+        }
+        if (ghostHoldUntil != 0 && now >= ghostHoldUntil) {
+            ghostHealth = MathUtil.interpolate(ghostHealth, healthRatio, 0.12f);
+            if (ghostHealth - healthRatio < 0.002f) {
+                ghostHealth = healthRatio;
+                ghostHoldUntil = 0;
+            }
+        }
         float x = getDraggable().getX();
         float y = getDraggable().getY();
 
@@ -80,6 +101,14 @@ public class TargetInfoWidget extends Widget {
         float nameDiffToHealthBar = Math.abs((y + margin) - (healthBarY - margin / 2f));
         float nameY = y + margin + nameDiffToHealthBar / 2f - bigFontSize / 2f;
 
+        // Pops in from slightly smaller, and jolts sideways for a moment when the target is hit.
+        float pop = 0.85f + 0.15f * anim;
+        float jolt = target.hurtTime > 0 ? (float) Math.sin(target.hurtTime * 2.4) * target.hurtTime * 0.25f : 0f;
+        matrixStack.pushPose();
+        matrixStack.translate(x + width / 2f + jolt, y + height / 2f, 0f);
+        matrixStack.scale(pop, pop, 1f);
+        matrixStack.translate(-(x + width / 2f), -(y + height / 2f), 0f);
+
         RenderUtil.BLUR_RECT.draw(matrixStack, x, y, width, height, backgroundRound, UIColors.widgetBlur(fullAlpha));
 
         Color textColor = UIColors.textColor(fullAlpha);
@@ -88,18 +117,26 @@ public class TargetInfoWidget extends Widget {
 
         RenderUtil.RECT.draw(matrixStack, healthBarX, healthBarY, healthBarWidth, healthBarHeight, healthBarRound, UIColors.backgroundBlur(fullAlpha));
 
+        if (ghostHealth > healthAnimation) {
+            Color ghost = ColorUtil.setAlpha(new Color(255, 235, 235), (int) (fullAlpha * 0.8f));
+            RenderUtil.RECT.draw(matrixStack, healthBarX, healthBarY, healthBarWidth * ghostHealth, healthBarHeight, healthBarRound, ghost);
+        }
+
         Color color1 = UIColors.gradient(0, fullAlpha);
         Color color2 = UIColors.gradient(90, fullAlpha);
         RenderUtil.GRADIENT_RECT.draw(matrixStack, healthBarX, healthBarY, healthBarWidth * healthAnimation, healthBarHeight, healthBarRound, color1, color2, color1, color2);
 
         if (target instanceof Player player) {
-            Color headColor = ColorUtil.setAlpha(Color.WHITE, fullAlpha);
+            float hurt = target.hurtTime / 10f;
+            Color headColor = ColorUtil.setAlpha(ColorUtil.interpolate(new Color(255, 90, 90), Color.WHITE, hurt), fullAlpha);
 
             RenderUtil.TEXTURE_RECT.drawHead(matrixStack, player, headX, headY, headSize, headSize, getGap() / 2f, 0f, headColor);
         } else {
             float headFontSize = headSize * 0.8f;
             getSemiBoldFont().drawCenteredText(matrixStack, "?", headX + headSize / 2f, headY + headSize / 2f - headFontSize / 2f, headFontSize, UIColors.textColor(fullAlpha));
         }
+
+        matrixStack.popPose();
 
         getDraggable().setWidth(width);
         getDraggable().setHeight(height);
@@ -125,8 +162,19 @@ public class TargetInfoWidget extends Widget {
     }
 
     private LivingEntity getTarget() {
-        // Preview target: while chat is open, show self so the HUD is visible.
+        // Preview target: while chat is open, show self so the HUD can be positioned.
         if (mc.gui.screen() instanceof ChatScreen) return mc.player;
+        if (mc.player == null) return null;
+
+        // Whoever was hit last, for a few seconds; otherwise whatever the crosshair is on.
+        Entity recent = CombatTracker.getInstance().recentTarget(4000L);
+        if (recent instanceof LivingEntity living && living.isAlive() && !living.isRemoved()
+                && living.distanceTo(mc.player) < 16f) {
+            return living;
+        }
+        if (mc.hitResult instanceof EntityHitResult hit && hit.getEntity() instanceof LivingEntity living && living.isAlive()) {
+            return living;
+        }
         return null;
     }
 

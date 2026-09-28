@@ -110,15 +110,16 @@ public class JumpCircleModule extends Module {
             animation.update();
             sizeAnimation.update();
 
+            // Bursts out fast and settles (expo), then fades on a gentler curve.
             sizeAnimation.run(
-                    isBack ? (animMode.contains("None") ? 1.0 : 0.0) : 1.0,
+                    isBack ? (animMode.contains("None") ? 1.15 : 0.0) : 1.0,
                     isBack ? dyingDur : spawnDur,
-                    Easing.SINE_OUT
+                    isBack ? Easing.QUAD_IN : Easing.EXPO_OUT
             );
             animation.run(
                     isBack ? 0.0 : 1.0,
                     isBack ? dyingDur : spawnDur,
-                    Easing.SINE_OUT
+                    isBack ? Easing.QUAD_IN : Easing.QUART_OUT
             );
 
             float anim = (float) animation.getValue();
@@ -138,7 +139,7 @@ public class JumpCircleModule extends Module {
                     position.z - mc.getEntityRenderDispatcher().camera.position().z()
             );
             matrixStack.mulPose(Axis.XP.rotationDegrees(90));
-            matrixStack.mulPose(Axis.ZP.rotationDegrees(timerUtil.getElapsedTime()));
+            matrixStack.mulPose(Axis.ZP.rotationDegrees((float) (Math.sqrt(timerUtil.getElapsedTime()) * 14.0)));
             Matrix4f matrix = matrixStack.last().pose();
 
             buffer.addVertex(matrix, scale, -scale, 0).setUv(0, 1f).setColor(color1.getRGB());

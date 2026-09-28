@@ -7,7 +7,9 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import com.fest.visuals.api.event.events.player.world.AttackEvent;
+import com.fest.visuals.api.event.events.player.world.CritEvent;
 import com.fest.visuals.api.event.events.player.move.TravelEvent;
 import com.fest.visuals.api.system.backend.SharedClass;
 
@@ -20,6 +22,15 @@ public abstract class MixinPlayerEntity extends MixinLivingEntity {
         if ((Object) this == SharedClass.player()) {
             AttackEvent.getInstance().call(new AttackEvent.AttackEventData(target));
         }
+    }
+
+    /** The crit decision is private and made mid-attack; this reports it the moment it is made. */
+    @Inject(method = "canCriticalAttack", at = @At("RETURN"))
+    private void festvisuals$crit(Entity target, CallbackInfoReturnable<Boolean> cir) {
+        if (!cir.getReturnValueZ() || SharedClass.player() == null) return;
+        if ((Object) this != SharedClass.player()) return;
+
+        CritEvent.getInstance().call(new CritEvent.CritEventData(target));
     }
 
     @Inject(method = "travel", at = @At("HEAD"))

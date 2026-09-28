@@ -29,10 +29,18 @@ public class ModuleManager {
                 InventoryHudModule.getInstance(),
                 ScoreboardHudModule.getInstance(),
                 SaturationModule.getInstance(),
+                DurabilityViewerModule.getInstance(),
                 StatsHudModule.getInstance(),
                 
                 // RENDER
+                AspectRatioModule.getInstance(),
                 ChinaHatModule.getInstance(),
+                ChunkFadeModule.getInstance(),
+                CriticalEffectModule.getInstance(),
+                DamageNumbersModule.getInstance(),
+                HitBubbleModule.getInstance(),
+                HitboxModule.getInstance(),
+                TrajectoryModule.getInstance(),
                 BlockHighlightModule.getInstance(),
                 AmbienceModule.getInstance(),
                 CrosshairModule.getInstance(),
@@ -45,6 +53,7 @@ public class ModuleManager {
                 ViewModelModule.getInstance(),
 
                 // OTHER (utility modules)
+                AuctionHelperModule.getInstance(),
                 AutoAcceptModule.getInstance(),
                 AutoAuthModule.getInstance(),
                 AutoEatModule.getInstance(),
@@ -53,6 +62,7 @@ public class ModuleManager {
                 AutoSprintModule.getInstance(),
                 DeathCordsModule.getInstance(),
                 FastScrollerModule.getInstance(),
+                FtHelperModule.getInstance(),
                 JarvisModule.getInstance(),
                 ZoomModule.getInstance(),
                 NameProtectModule.getInstance(),

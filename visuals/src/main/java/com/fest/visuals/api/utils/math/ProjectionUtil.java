@@ -6,15 +6,36 @@ import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.NotNull;
+import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.joml.Vector2f;
 import org.joml.Vector3f;
+import org.joml.Vector4f;
 import com.fest.visuals.api.system.interfaces.QuickImports;
 
 @UtilityClass
 public class ProjectionUtil implements QuickImports {
     private float previousSpeed = 0.0f;
     private float horizontalSpeed = 0.0f;
+
+    /**
+     * World to GUI coordinates through the camera's own view-projection matrix, so zoom, dynamic
+     * FOV and a custom aspect ratio are all accounted for. Null when the point is behind the camera.
+     */
+    public Vector2f projectExact(@NotNull Vec3 pos) {
+        var camera = mc.gameRenderer.mainCamera();
+        Vec3 cam = camera.position();
+
+        Vector4f clip = new Vector4f((float) (pos.x - cam.x), (float) (pos.y - cam.y), (float) (pos.z - cam.z), 1f);
+        camera.getViewRotationProjectionMatrix(new Matrix4f()).transform(clip);
+        if (clip.w <= 0.05f) return null;
+
+        float ndcX = clip.x / clip.w;
+        float ndcY = clip.y / clip.w;
+        return new Vector2f(
+                (ndcX * 0.5f + 0.5f) * mc.getWindow().getGuiScaledWidth(),
+                (0.5f - ndcY * 0.5f) * mc.getWindow().getGuiScaledHeight());
+    }
 
     public Vector2f project(@NotNull Vec3 vec3d) {
         return project(vec3d.x(), vec3d.y(), vec3d.z());

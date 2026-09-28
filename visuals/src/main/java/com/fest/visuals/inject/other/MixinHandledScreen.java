@@ -3,6 +3,7 @@ package com.fest.visuals.inject.other;
 import java.util.HashSet;
 import java.util.Set;
 
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -21,6 +22,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import com.fest.visuals.api.event.events.other.ScreenEvent;
+import com.fest.visuals.client.features.modules.utility.AuctionHelperModule;
 import com.fest.visuals.client.features.modules.utility.FastScrollerModule;
 
 @Mixin(AbstractContainerScreen.class)
@@ -44,6 +46,27 @@ public abstract class MixinHandledScreen<T extends AbstractContainerMenu> extend
 
         for (Button button : event.buttons()) {
             this.addRenderableWidget(button);
+        }
+    }
+
+    @Inject(method = "extractSlots", at = @At("HEAD"))
+    private void festvisuals$rankLots(GuiGraphicsExtractor graphics, int mouseX, int mouseY, CallbackInfo ci) {
+        AuctionHelperModule helper = AuctionHelperModule.getInstance();
+        if (helper.isEnabled()) helper.prepare(this.title, this.getMenu().slots);
+    }
+
+    /** Drawn before the item, so the highlight sits behind it. */
+    @Inject(method = "extractSlot", at = @At("HEAD"))
+    private void festvisuals$highlightLot(GuiGraphicsExtractor graphics, Slot slot, int mouseX, int mouseY, CallbackInfo ci) {
+        AuctionHelperModule helper = AuctionHelperModule.getInstance();
+        if (!helper.isEnabled()) return;
+
+        int color = helper.highlight(slot);
+        if (color == 0) return;
+
+        graphics.fill(slot.x, slot.y, slot.x + 16, slot.y + 16, color);
+        if (helper.isCheapest(slot)) {
+            graphics.outline(slot.x - 1, slot.y - 1, 18, 18, color | 0xFF000000);
         }
     }
 
