@@ -31,4 +31,11 @@ public class MixinGameRenderer {
     private void renderInterface(CallbackInfo ci) {
         FestRenderer.getInstance().flush();
     }
+
+    @org.spongepowered.asm.mixin.injection.Inject(method = "bobHurt", at = @org.spongepowered.asm.mixin.injection.At("HEAD"), cancellable = true)
+    private void festvisuals$hurtCam(net.minecraft.client.renderer.state.level.CameraRenderState camera,
+                                     com.mojang.blaze3d.vertex.PoseStack poseStack,
+                                     org.spongepowered.asm.mixin.injection.callback.CallbackInfo ci) {
+        if (com.fest.visuals.client.features.modules.render.RemovalsModule.getInstance().isHurtCam()) ci.cancel();
+    }
 }

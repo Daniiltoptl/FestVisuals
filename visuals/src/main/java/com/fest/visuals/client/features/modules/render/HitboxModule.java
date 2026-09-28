@@ -43,7 +43,7 @@ public class HitboxModule extends Module {
     @Getter private static final HitboxModule instance = new HitboxModule();
 
     public final BooleanSetting players = new BooleanSetting("Игроки").value(true);
-    public final BooleanSetting mobs = new BooleanSetting("Мобы").value(false);
+    public final BooleanSetting mobs = new BooleanSetting("Мобы").value(true);
     public final SliderSetting range = new SliderSetting("Дистанция").value(24f).range(4f, 64f).step(1f);
     public final SliderSetting thickness = new SliderSetting("Толщина").value(1.5f).range(0.5f, 5f).step(0.25f);
     public final BooleanSetting fill = new BooleanSetting("Заливка").value(true);

@@ -40,9 +40,14 @@ public class AutoAuthModule extends Module {
     /** "/login", "/l" — the account exists. */
     private static final Pattern LOGIN = Pattern.compile("(?i)(^|[\\s\\p{Punct}])/(login|log|l)(?![\\w])");
 
+    /** A server that keeps asking after we answered gets a few more tries, spaced out. */
+    private static final int MAX_ATTEMPTS = 3;
+    private static final long RETRY_AFTER_MS = 5000L;
+
     private String pending;
     private int countdown = -1;
-    private boolean handledThisJoin;
+    private int attempts;
+    private long lastSentAt;
 
     public AutoAuthModule() {
         addSettings(password, delay);
@@ -58,7 +63,10 @@ public class AutoAuthModule extends Module {
                 return;
             }
 
-            if (handledThisJoin || pending != null || password.isEmpty()) return;
+            if (pending != null || password.isEmpty() || attempts >= MAX_ATTEMPTS) return;
+            // The prompt usually repeats every few seconds; only answer again once the previous
+            // attempt has clearly not been accepted.
+            if (attempts > 0 && System.currentTimeMillis() - lastSentAt < RETRY_AFTER_MS) return;
 
             String text = ChatPacketUtil.extractText(event.packet());
             if (text.isEmpty()) return;
@@ -72,7 +80,7 @@ public class AutoAuthModule extends Module {
                 return;
             }
 
-            handledThisJoin = true;
+            attempts++;
             countdown = (int) delay.getValue().floatValue();
         })));
 
@@ -80,7 +88,10 @@ public class AutoAuthModule extends Module {
             if (pending == null) return;
             if (countdown-- > 0) return;
 
-            if (mc.player != null) mc.player.connection.sendCommand(pending);
+            if (mc.player != null) {
+                mc.player.connection.sendCommand(pending);
+                lastSentAt = System.currentTimeMillis();
+            }
             pending = null;
             countdown = -1;
         })));
@@ -92,7 +103,8 @@ public class AutoAuthModule extends Module {
     }
 
     private void reset() {
-        handledThisJoin = false;
+        attempts = 0;
+        lastSentAt = 0L;
         pending = null;
         countdown = -1;
     }

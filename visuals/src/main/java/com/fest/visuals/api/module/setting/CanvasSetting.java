@@ -16,6 +16,14 @@ public class CanvasSetting extends Setting<String> {
     /** The grid the crosshair is painted on. */
     public static final int SIZE = 16;
 
+    /** Colour the grid is painted in, so the editor shows the shape as it will look in game. */
+    @lombok.Getter private transient Supplier<java.awt.Color> tint;
+
+    public CanvasSetting tint(Supplier<java.awt.Color> tint) {
+        this.tint = tint;
+        return this;
+    }
+
     public CanvasSetting(String name) {
         super(name);
         this.value = defaultCross();

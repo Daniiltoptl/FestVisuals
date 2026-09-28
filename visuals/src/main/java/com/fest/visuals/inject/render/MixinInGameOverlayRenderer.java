@@ -39,4 +39,9 @@ public class MixinInGameOverlayRenderer {
             ci.cancel();
         }
     }
+
+    @Inject(method = "displayItemActivation", at = @At("HEAD"), cancellable = true)
+    private void festvisuals$totem(net.minecraft.world.item.ItemStack stack, net.minecraft.util.RandomSource random, CallbackInfo ci) {
+        if (RemovalsModule.getInstance().isTotem()) ci.cancel();
+    }
 }

@@ -203,7 +203,7 @@ public class FtHelperModule extends Module {
     private boolean drawCircle(VertexConsumer buffer, Matrix4f matrix, Vec3 feet, double radius, long now) {
         Vec3 centre = feet.add(0, 0.02, 0);
         double r = grown(radius, now);
-        double line = lineWidth.getValue() * 0.03 * Math.max(1.0, radius / 5.0);
+        double line = lineWidth.getValue() * 0.05 * Math.max(1.0, radius / 5.0);
 
         boolean caught = false;
         List<Player> inside = new ArrayList<>();
@@ -218,7 +218,7 @@ public class FtHelperModule extends Module {
         int segments = (int) Math.min(160, 48 + radius * 8);
 
         if (fill.getValue()) {
-            WorldShapes.disc(buffer, matrix, centre, r, segments, WorldShapes.argb(main, 0.04f), WorldShapes.argb(main, 0.22f));
+            WorldShapes.disc(buffer, matrix, centre, r, segments, WorldShapes.argb(main, 0.06f), WorldShapes.argb(main, 0.32f));
             // A soft wall along the rim makes the edge readable from above and from the side.
             WorldShapes.wall(buffer, matrix, centre, r, 0.45 + 0.15 * alarm, segments, WorldShapes.argb(main, 0.35f), WorldShapes.argb(main, 0f));
         }
@@ -310,7 +310,7 @@ public class FtHelperModule extends Module {
         Color main = tint(1f);
         double line = lineWidth.getValue() * 0.015;
         WorldShapes.boxOutline(buffer, matrix, drawn, line, main.getRGB());
-        if (fill.getValue()) WorldShapes.boxFill(buffer, matrix, drawn, WorldShapes.argb(main, 0.12f));
+        if (fill.getValue()) WorldShapes.boxFill(buffer, matrix, drawn, WorldShapes.argb(main, 0.16f));
 
         // A scan line sweeping up the cage.
         double sweep = (now % 1400L) / 1400.0;

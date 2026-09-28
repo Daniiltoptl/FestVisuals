@@ -58,7 +58,7 @@ public class CrosshairModule extends Module {
             .value(new Color(255, 60, 60, 240)).setVisible(entityHighlight::getValue);
 
     /** Always visible, and first in the card: it doubles as the preview of what is on screen. */
-    public final CanvasSetting canvas = new CanvasSetting("Рисунок");
+    public final CanvasSetting canvas = new CanvasSetting("Рисунок").tint(() -> color.getValue());
 
     private final AnimationUtil highlightAnimation = new AnimationUtil();
 
@@ -69,7 +69,7 @@ public class CrosshairModule extends Module {
 
     @Override
     public void onEvent() {
-        addEvents(Render2DEvent.getInstance().subscribe(new Listener<>(event -> render(event.matrixStack()))));
+        addEvents(Render2DEvent.getInstance().subscribe(new Listener<>(event -> render(event.context(), event.matrixStack()))));
     }
 
     /**
@@ -83,8 +83,12 @@ public class CrosshairModule extends Module {
                 && mc.options.getCameraType().isFirstPerson();
     }
 
-    private void render(PoseStack matrices) {
+    /** Rectangles of the current frame, drawn in two passes so outlines never cover pixels. */
+    private final java.util.List<float[]> rects = new java.util.ArrayList<>();
+
+    private void render(net.minecraft.client.gui.GuiGraphicsExtractor context, PoseStack matrices) {
         if (!shouldRender()) return;
+        rects.clear();
 
         boolean onEntity = entityHighlight.getValue()
                 && mc.hitResult != null && mc.hitResult.getType() == HitResult.Type.ENTITY;
@@ -95,8 +99,9 @@ public class CrosshairModule extends Module {
         Color tint = ColorUtil.interpolate(entityColor.getValue(), color.getValue(),
                 (float) highlightAnimation.getValue());
 
-        float centreX = mc.getWindow().getGuiScaledWidth() / 2f;
-        float centreY = mc.getWindow().getGuiScaledHeight() / 2f;
+        // Whole pixels, so every square of a painted crosshair lands on the pixel grid.
+        float centreX = mc.getWindow().getGuiScaledWidth() / 2;
+        float centreY = mc.getWindow().getGuiScaledHeight() / 2;
 
         switch (style.getValue()) {
             case "Точка" -> dot(matrices, centreX, centreY, dotSize.getValue(), tint);
@@ -104,14 +109,28 @@ public class CrosshairModule extends Module {
             case "Свой рисунок" -> painted(matrices, centreX, centreY, tint);
             default -> cross(matrices, centreX, centreY, tint);
         }
+        flush(context, tint);
+    }
+
+    /**
+     * Crisp, pixel-aligned rectangles through the vanilla GUI fill. The client's rounded-rect
+     * renderer feathers every edge, which turned a painted crosshair into a field of soft dots.
+     */
+    private void flush(net.minecraft.client.gui.GuiGraphicsExtractor context, Color tint) {
+        if (outline.getValue()) {
+            int shadow = ColorUtil.setAlpha(Color.BLACK, (int) (tint.getAlpha() * 0.55f)).getRGB();
+            for (float[] r : rects) {
+                context.fill(Math.round(r[0]) - 1, Math.round(r[1]) - 1, Math.round(r[0] + r[2]) + 1, Math.round(r[1] + r[3]) + 1, shadow);
+            }
+        }
+        int color = tint.getRGB();
+        for (float[] r : rects) {
+            context.fill(Math.round(r[0]), Math.round(r[1]), Math.round(r[0] + r[2]), Math.round(r[1] + r[3]), color);
+        }
     }
 
     private void bar(PoseStack matrices, float x, float y, float width, float height, Color tint) {
-        if (outline.getValue()) {
-            RenderUtil.RECT.draw(matrices, x - 1f, y - 1f, width + 2f, height + 2f, 0f,
-                    ColorUtil.setAlpha(Color.BLACK, (int) (tint.getAlpha() * 0.55f)));
-        }
-        RenderUtil.RECT.draw(matrices, x, y, width, height, 0f, tint);
+        rects.add(new float[]{x, y, width, height});
     }
 
     private void cross(PoseStack matrices, float centreX, float centreY, Color tint) {
@@ -141,7 +160,7 @@ public class CrosshairModule extends Module {
             double angle = i * Math.PI * 2 / steps;
             float x = centreX + (float) Math.cos(angle) * radius;
             float y = centreY + (float) Math.sin(angle) * radius;
-            RenderUtil.RECT.draw(matrices, x - t / 2f, y - t / 2f, t, t, t / 2f, tint);
+            bar(matrices, x - t / 2f, y - t / 2f, t, t, tint);
         }
     }
 

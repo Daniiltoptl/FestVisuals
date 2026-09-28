@@ -38,7 +38,10 @@ public class AutoResellModule extends Module {
             if (++ticks < interval.getValue() * 20f) return;
             ticks = 0;
 
-            mc.player.connection.sendCommand(command.getValue());
+            // Accept the command typed with or without the leading slash: "/ah resell" in the field
+            // used to go out as "//ah resell", which the server rejects as an unknown command.
+            String cmd = command.getValue().trim().replaceFirst("^/+", "");
+            if (!cmd.isEmpty()) mc.player.connection.sendCommand(cmd);
         })));
     }
 

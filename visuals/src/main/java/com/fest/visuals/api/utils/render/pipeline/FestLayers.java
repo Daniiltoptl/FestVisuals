@@ -20,6 +20,9 @@ import java.util.function.Function;
 
 @UtilityClass
 public class FestLayers {
+    // 26.2 renders the level with a reversed depth buffer (near = 1, far = 0): vanilla's own
+    // pipelines test GREATER_THAN_OR_EQUAL. A LESS_THAN_OR_EQUAL test here inverts occlusion —
+    // shapes only show where something is in front of them and vanish against open sky.
     private final RenderPipeline LINES_PIPELINE = RenderPipelines.register(RenderPipeline.builder(RenderPipelines.LINES_SNIPPET)
             .withLocation(id("pipeline/esp_lines"))
             .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
@@ -28,7 +31,7 @@ public class FestLayers {
     private final RenderPipeline QUADS_PIPELINE = RenderPipelines.register(RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
             .withLocation(id("pipeline/esp_quads"))
             .withCull(false)
-            .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, true))
+            .withDepthStencilState(new DepthStencilState(CompareOp.GREATER_THAN_OR_EQUAL, true))
             .build());
 
     private final RenderPipeline TEXTURED_PIPELINE = RenderPipelines.register(RenderPipeline.builder(RenderPipelines.GUI_TEXTURED_SNIPPET)
@@ -52,7 +55,7 @@ public class FestLayers {
             .withCull(false)
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             // Depth write stays off so overlapping translucent quads do not cull each other.
-            .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false))
+            .withDepthStencilState(new DepthStencilState(CompareOp.GREATER_THAN_OR_EQUAL, false))
             .build());
 
     /** Same flat quads, drawn over everything: for shapes meant to be seen through walls. */
@@ -68,7 +71,7 @@ public class FestLayers {
             .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR)
             .withPrimitiveTopology(PrimitiveTopology.DEBUG_LINES)
             .withCull(false)
-            .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, true))
+            .withDepthStencilState(new DepthStencilState(CompareOp.GREATER_THAN_OR_EQUAL, true))
             .build());
 
     public final RenderType LINES = RenderType.create("festvisuals_esp_lines", RenderSetup.builder(LINES_PIPELINE).createRenderSetup());

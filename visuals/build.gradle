@@ -84,6 +84,19 @@ dependencies {
 	implementation "org.json:json:${project.json_version}"
 }
 
+// Client game tests (./gradlew runClientGameTest) live in their own source set and never ship:
+// they create a world, set up a scene and take screenshots of the visuals for inspection.
+fabricApi {
+	configureTests {
+		createSourceSet = true
+		modId = "festvisuals-gametest"
+		enableGameTests = false
+		enableClientGameTests = true
+		eula = true
+		clearRunDirectory = false
+	}
+}
+
 processResources {
 	inputs.property "version", project.version
 

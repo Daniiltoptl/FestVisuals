@@ -91,7 +91,7 @@ public class CanvasComponent extends SettingComponent {
                 float cy = top + row * cell;
 
                 if (setting.get(column, row)) {
-                    RenderUtil.RECT.draw(matrices, cx, cy, cell, cell, 0f, UIColors.primary(full));
+                    RenderUtil.RECT.draw(matrices, cx, cy, cell, cell, 0f, paint(full));
                 } else if (column == centre || row == centre) {
                     // Faint cross-hairs mark the centre so a shape can be aimed at it.
                     RenderUtil.RECT.draw(matrices, cx, cy, cell, cell, 0f,
@@ -123,7 +123,7 @@ public class CanvasComponent extends SettingComponent {
             for (int column = 0; column < CanvasSetting.SIZE; column++) {
                 if (!setting.get(column, row)) continue;
                 RenderUtil.RECT.draw(matrices, originX + column * pixel, originY + row * pixel, pixel, pixel, 0f,
-                        ColorUtil.setAlpha(Color.WHITE, full));
+                        paint(full));
             }
         }
     }
@@ -139,6 +139,15 @@ public class CanvasComponent extends SettingComponent {
         float fontSize = scaled(6.5f);
         Fonts.PS_MEDIUM.drawCenteredText(matrices, label, x + width / 2f, y + (height - fontSize) / 2f,
                 fontSize, over ? UIColors.textColor(full) : UIColors.inactiveTextColor(full));
+    }
+
+    /** The crosshair's own colour when the setting has one, the theme colour otherwise. */
+    private Color paint(int alpha) {
+        if (setting.getTint() != null) {
+            Color tint = setting.getTint().get();
+            return ColorUtil.setAlpha(tint, Math.min(alpha, Math.max(60, tint.getAlpha())));
+        }
+        return UIColors.primary(alpha);
     }
 
     private void paint(double mouseX, double mouseY) {

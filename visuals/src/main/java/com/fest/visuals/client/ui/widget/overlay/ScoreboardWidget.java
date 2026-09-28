@@ -58,7 +58,7 @@ public class ScoreboardWidget extends Widget {
 
     @Override
     public void render(PoseStack matrixStack) {
-        Objective objective = sidebar();
+        Objective objective = com.fest.visuals.client.features.modules.render.RemovalsModule.getInstance().isScoreboard() ? null : sidebar();
         if (objective == null || mc.level == null) {
             getDraggable().setWidth(0f);
             getDraggable().setHeight(0f);

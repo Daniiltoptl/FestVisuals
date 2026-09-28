@@ -17,10 +17,15 @@ import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
 @UtilityClass
 public class ChatPacketUtil {
     public String extractText(Packet<?> packet) {
-        if (packet instanceof ClientboundSystemChatPacket systemChat) {
-            Component content = systemChat.content();
-            return content == null ? "" : content.getString();
-        }
-        return "";
+        // Servers speak through titles and the action bar as much as through chat: auth plugins
+        // often put "/login <пароль>" in a subtitle, event plugins in the action bar.
+        Component content = switch (packet) {
+            case ClientboundSystemChatPacket systemChat -> systemChat.content();
+            case net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket title -> title.text();
+            case net.minecraft.network.protocol.game.ClientboundSetSubtitleTextPacket subtitle -> subtitle.text();
+            case net.minecraft.network.protocol.game.ClientboundSetActionBarTextPacket actionBar -> actionBar.text();
+            default -> null;
+        };
+        return content == null ? "" : content.getString();
     }
 }

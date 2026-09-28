@@ -13,6 +13,10 @@ public abstract class MixinWeatherRendering {
 
     @ModifyExpressionValue(method = "extractRenderState", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/multiplayer/ClientLevel;getPrecipitationAt(Lnet/minecraft/core/BlockPos;)Lnet/minecraft/world/level/biome/Biome$Precipitation;"))
     private Biome.Precipitation modifyBiomePrecipitation(Biome.Precipitation original) {
+        if (com.fest.visuals.client.features.modules.render.RemovalsModule.getInstance().isWeather()) {
+            return Biome.Precipitation.NONE;
+        }
+
         var moduleOverrideWeather = AmbienceModule.getInstance();
         if (moduleOverrideWeather.isEnabled() && moduleOverrideWeather.weather.is(AmbienceModule.Weather.SNOWY)) {
             return Biome.Precipitation.SNOW;

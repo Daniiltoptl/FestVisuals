@@ -292,7 +292,7 @@ public class ScreenClickGUI extends Screen implements QuickImports {
         panels.add(new ClickGuiSettingsPanel(component, x, y, rowX, rowY + ClickGuiLayout.rowHeight() / 2f));
     }
 
-    private void switchTo(ClickGuiTab next) {
+    public void switchTo(ClickGuiTab next) {
         if (next == tab) {
             modules.restart();
             return;
@@ -319,6 +319,7 @@ public class ScreenClickGUI extends Screen implements QuickImports {
             if (panel.keyPressed(input.key(), input.scancode(), input.modifiers())) typing = true;
         }
         if (typing) return true;
+        if (tab == ClickGuiTab.WAYPOINTS && waypointsUI.keyPressed(input.key())) return true;
 
         // Escape otherwise gets out: it clears the search text if there is any, then closes the
         // cards, then the screen. Nothing else may swallow it.
@@ -354,6 +355,8 @@ public class ScreenClickGUI extends Screen implements QuickImports {
     @Override
     public boolean charTyped(CharacterEvent input) {
         char chr = (char) input.codepoint();
+        // A focused waypoint field gets the text before the search box can take it.
+        if (tab == ClickGuiTab.WAYPOINTS && waypointsUI.charTyped(chr)) return true;
         if (topBar.charTyped(chr)) {
             modules.restart();
             return true;
