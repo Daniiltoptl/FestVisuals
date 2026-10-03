@@ -21,6 +21,10 @@ log = logging.getLogger("jarvis.brain")
 
 _client = None
 
+# Fastest model that follows the setting names exactly; the others are tried if it disappears.
+DEFAULT_MODEL = "qwen/qwen3.8-27b"
+FALLBACK_MODELS = ["qwen/qwen3.8-27b", "openai/gpt-oss-120b", "openai/gpt-oss-20b"]
+
 
 def _groq():
     """Imported lazily: fixed phrases work without the groq package or a key installed at all."""
@@ -106,22 +110,30 @@ def think(transcript: str, context: dict | None = None) -> tuple[str, list[dict]
 
 
 def _ask_groq(text: str, context: dict | None) -> tuple[str, list[dict]]:
-    model = os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")
+    # Groq retires models without notice; when the preferred one is gone, the next one answers.
+    models = [os.environ.get("GROQ_MODEL", DEFAULT_MODEL)] + [m for m in FALLBACK_MODELS if m != os.environ.get("GROQ_MODEL")]
 
-    try:
-        response = _groq().chat.completions.create(
-            model=model,
-            messages=[
-                {"role": "system", "content": _system_prompt(context)},
-                {"role": "user", "content": text},
-            ],
-            response_format={"type": "json_object"},
-            temperature=0.3,
-            max_tokens=400,
-        )
-    except Exception as e:  # noqa: BLE001 — surfaced to the user as a spoken/chat error either way
-        log.exception("Groq request failed")
-        return f"Ошибка связи с нейросетью: {e}", []
+    response, error = None, None
+    for model in models:
+        try:
+            response = _groq().chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": _system_prompt(context)},
+                    {"role": "user", "content": text},
+                ],
+                response_format={"type": "json_object"},
+                temperature=0.3,
+                max_tokens=600,
+            )
+            break
+        except Exception as e:  # noqa: BLE001 — surfaced to the user as a spoken/chat error either way
+            error = e
+            log.warning("Groq request with %s failed: %s", model, e)
+            if getattr(e, "status_code", None) not in (400, 404):
+                break  # network or auth trouble: another model won't help
+    if response is None:
+        return f"Ошибка связи с нейросетью: {error}", []
 
     raw = response.choices[0].message.content or ""
     try:
