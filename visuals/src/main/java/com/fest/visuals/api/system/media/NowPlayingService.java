@@ -11,6 +11,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import com.fest.visuals.api.system.backend.ClientInfo;
@@ -139,6 +140,10 @@ public class NowPlayingService {
             Path exe = dir.resolve("MediaBridge.exe");
             Path source = dir.resolve("MediaBridge.cs");
 
+            // Bridges started by older builds outlived a crashed or killed game; one still running
+            // would also lock the exe and make the recompile below fail.
+            stopLeftoverBridges(exe);
+
             // Recompile whenever the embedded source changes.
             boolean stale = !Files.exists(exe)
                     || !Files.exists(source)
@@ -155,7 +160,9 @@ public class NowPlayingService {
             ProcessBuilder pb = new ProcessBuilder(
                     exe.toAbsolutePath().toString(),
                     commandFile.toAbsolutePath().toString(),
-                    artDir.toAbsolutePath().toString()
+                    artDir.toAbsolutePath().toString(),
+                    // The bridge exits by itself once this process is gone.
+                    String.valueOf(ProcessHandle.current().pid())
             );
             pb.redirectErrorStream(true);
             process = pb.start();
@@ -164,6 +171,26 @@ public class NowPlayingService {
             reader.setDaemon(true);
             reader.start();
         } catch (IOException | RuntimeException ignored) {
+        }
+    }
+
+    private static void stopLeftoverBridges(Path exe) {
+        Path target = exe.toAbsolutePath().normalize();
+        ProcessHandle.allProcesses()
+                .filter(p -> runs(p, target))
+                .forEach(p -> {
+                    p.destroyForcibly();
+                    p.onExit().completeOnTimeout(p, 2, TimeUnit.SECONDS).join();
+                });
+    }
+
+    private static boolean runs(ProcessHandle process, Path exe) {
+        try {
+            return process.info().command()
+                    .map(command -> Paths.get(command).toAbsolutePath().normalize().equals(exe))
+                    .orElse(false);
+        } catch (RuntimeException e) {
+            return false; // unreadable or odd command line: not ours
         }
     }
 
@@ -274,6 +301,7 @@ public class NowPlayingService {
      */
     private static final String BRIDGE_SOURCE = """
             using System;
+            using System.Diagnostics;
             using System.Globalization;
             using System.IO;
             using System.Runtime.InteropServices;
@@ -369,6 +397,14 @@ public class NowPlayingService {
                     string commandFile = args.Length > 0 ? args[0] : null;
                     string artDir = args.Length > 1 ? args[1] : Path.GetTempPath();
 
+                    // Writes to a closed stdout pipe fail silently in .NET, so a crashed or killed
+                    // game would leave this loop running forever; watch the game process instead.
+                    Process game = null;
+                    if (args.Length > 2) {
+                        try { game = Process.GetProcessById(int.Parse(args[2], CultureInfo.InvariantCulture)); }
+                        catch { return 0; }
+                    }
+
                     GlobalSystemMediaTransportControlsSessionManager manager;
                     try {
                         manager = Await(GlobalSystemMediaTransportControlsSessionManager.RequestAsync());
@@ -380,6 +416,10 @@ public class NowPlayingService {
                     int tick = 0;
 
                     while (true) {
+                        if (game != null && tick % 20 == 0) {
+                            try { if (game.HasExited) return 0; } catch { }
+                        }
+
                         GlobalSystemMediaTransportControlsSession session = null;
                         try { session = manager.GetCurrentSession(); } catch { }
 
