@@ -65,6 +65,7 @@ public class DamageNumbersModule extends Module {
     }
 
     private void onHit(CombatTracker.Hit hit) {
+        if (hit.entity().isInvisible()) return;
         if (hit.heal() && !heals.getValue()) return;
         if (source.is("Только свои удары") && !hit.ours()) return;
 

@@ -60,12 +60,24 @@ async def handle(websocket):
         log.info("client disconnected: %s", peer)
 
 
+def _vocabulary(context) -> str:
+    """Words Whisper should expect: the verbs Jarvis understands and every module name."""
+    words = ["Джарвис, включи, выключи, загрузи конфиг, поставь тему, тепнись на хом, спавн, аукцион."]
+    if isinstance(context, dict):
+        names = [m.get("name", "") for m in context.get("modules", []) if isinstance(m, dict)]
+        if names:
+            words.append("Модули: " + ", ".join(names) + ".")
+    return " ".join(words)[:800]
+
+
 async def _process(websocket, audio: bytes, header: dict) -> None:
     loop = asyncio.get_running_loop()
     sample_rate = int(header.get("sampleRate", 16000))
 
     try:
-        transcript = await loop.run_in_executor(None, stt.transcribe, audio, sample_rate)
+        transcript, stt_warning = await loop.run_in_executor(
+            None, stt.transcribe, audio, sample_rate, header.get("sttModel"), bool(header.get("useGpu")),
+            _vocabulary(header.get("context")))
     except Exception as e:  # noqa: BLE001
         log.exception("stt failed")
         await websocket.send(json.dumps({"type": "error", "message": f"STT: {e}"}))
@@ -74,14 +86,15 @@ async def _process(websocket, audio: bytes, header: dict) -> None:
     log.info("transcript: %r", transcript)
 
     try:
-        reply, actions = await loop.run_in_executor(None, brain.think, transcript)
+        context = header.get("context") if isinstance(header.get("context"), dict) else None
+        reply, actions = await loop.run_in_executor(None, brain.think, transcript, context)
     except Exception as e:  # noqa: BLE001
         log.exception("brain failed")
         await websocket.send(json.dumps({"type": "error", "message": f"brain: {e}"}))
         return
 
     wav = None
-    if reply:
+    if reply and header.get("voice", True):
         try:
             wav = await loop.run_in_executor(None, tts.synthesize, reply)
         except Exception:  # noqa: BLE001
@@ -90,7 +103,7 @@ async def _process(websocket, audio: bytes, header: dict) -> None:
     await websocket.send(json.dumps({
         "type": "result",
         "transcript": transcript,
-        "reply": reply,
+        "reply": reply if not stt_warning else f"{reply} ({stt_warning})",
         "actions": actions,
         "audio": wav is not None,
     }))
@@ -103,7 +116,7 @@ async def main() -> None:
     port = int(os.environ.get("JARVIS_PORT", "8765"))
 
     log.info("Jarvis server listening on %s:%s", host, port)
-    async with websockets.serve(handle, host, port, max_size=20 * 1024 * 1024):
+    async with websockets.serve(handle, host, port, max_size=32 * 1024 * 1024):
         await asyncio.Future()
 
 

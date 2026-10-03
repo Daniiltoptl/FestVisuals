@@ -48,7 +48,11 @@ public class TargetInfoWidget extends Widget {
 
         if (showAnimation.getValue() <= 0.0 || target == null) return;
 
-        float healthRatio = Mth.clamp(target.getHealth() / target.getMaxHealth(), 0f, 1f);
+        
+        float actualHealth = target instanceof Player p ? getFunTimeHealth(p) : target.getHealth();
+        float maxHealth = (target instanceof Player && TargetHudModule.getInstance().ftMode.getValue()) ? Math.max(20f, actualHealth) : target.getMaxHealth();
+        float healthRatio = Mth.clamp(actualHealth / maxHealth, 0f, 1f);
+
         healthAnimation = Mth.clamp(MathUtil.interpolate(healthAnimation, healthRatio, 0.3f), 0f, 1f);
 
         long now = System.currentTimeMillis();
@@ -78,7 +82,9 @@ public class TargetInfoWidget extends Widget {
         float smallFontSize = (headSize * 0.4f) * 0.7f;
 
         String targetName = target.getName().getString();
-        String healthText = String.format("%.1f", target.getHealth() + target.getAbsorptionAmount()) + "HP";
+        
+        String healthText = String.format("%.1f", actualHealth + (TargetHudModule.getInstance().ftMode.getValue() ? 0 : target.getAbsorptionAmount())) + "HP";
+
         float healthTextWidth = getMediumFont().getWidth(healthText, smallFontSize);
 
         float offset = getGap() * 3f;
@@ -154,6 +160,25 @@ public class TargetInfoWidget extends Widget {
         float y = yPos + getGap();
         float size = scaled(25f);
         return new float[]{x, y, size};
+    }
+
+    
+    private float getFunTimeHealth(Player target) {
+        if (!TargetHudModule.getInstance().ftMode.getValue()) return target.getHealth();
+        for (net.minecraft.world.entity.Entity e : mc.level.getEntitiesOfClass(net.minecraft.world.entity.Entity.class, target.getBoundingBox().inflate(2.0))) {
+            if (e != target && e.hasCustomName()) {
+                String name = e.getCustomName().getString().toLowerCase();
+                if (name.contains("здоровья") || name.contains("hp") || name.contains("❤") || name.contains("\u2764")) {
+                    String digits = name.replaceAll("[^0-9.]", "");
+                    if (!digits.isEmpty()) {
+                        try {
+                            return Float.parseFloat(digits);
+                        } catch (Exception ignored) {}
+                    }
+                }
+            }
+        }
+        return target.getHealth();
     }
 
     private void update() {

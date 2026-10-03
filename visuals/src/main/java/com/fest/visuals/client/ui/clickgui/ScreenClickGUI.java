@@ -320,6 +320,7 @@ public class ScreenClickGUI extends Screen implements QuickImports {
         }
         if (typing) return true;
         if (tab == ClickGuiTab.WAYPOINTS && waypointsUI.keyPressed(input.key())) return true;
+        if (tab == ClickGuiTab.CONFIGS && configs.keyPressed(input.key())) return true;
 
         // Escape otherwise gets out: it clears the search text if there is any, then closes the
         // cards, then the screen. Nothing else may swallow it.
@@ -357,6 +358,7 @@ public class ScreenClickGUI extends Screen implements QuickImports {
         char chr = (char) input.codepoint();
         // A focused waypoint field gets the text before the search box can take it.
         if (tab == ClickGuiTab.WAYPOINTS && waypointsUI.charTyped(chr)) return true;
+        if (tab == ClickGuiTab.CONFIGS && configs.charTyped(chr)) return true;
         if (topBar.charTyped(chr)) {
             modules.restart();
             return true;

@@ -10,30 +10,19 @@ import com.fest.visuals.api.module.ModuleRegister;
 import com.fest.visuals.api.module.setting.BooleanSetting;
 import com.fest.visuals.api.module.setting.StringSetting;
 
-/**
- * Purely visual privacy for streams: rewrites text the client is about to draw.
- *
- * <p>Runs on every rendered string through {@code MixinTextVisitFactory}, so it covers chat, the
- * tab list, scoreboards and name tags at once. Nothing leaves the client altered — the network
- * traffic is untouched.
- */
-@ModuleRegister(name = "Name Protect", desc = "Скрывает ник и режим сервера", category = Category.OTHER)
+@ModuleRegister(name = "Name Protect", desc = "Визуальное скрытие режима и ника", category = Category.OTHER)
 public class NameProtectModule extends Module {
     @Getter private static final NameProtectModule instance = new NameProtectModule();
 
     public final StringSetting nickname = new StringSetting("Ник")
-            .value("Player").placeholder("Player").maxLength(16);
+            .value("FestVisuals").placeholder("FestVisuals").maxLength(16);
     public final BooleanSetting hideMode = new BooleanSetting("Скрывать режим").value(false);
     public final StringSetting modeReplacement = new StringSetting("Замена режима")
-            .value("???").placeholder("???").maxLength(16).setVisible(hideMode::getValue);
+            .value("\u0418\u043c\u044f").placeholder("\u0418\u043c\u044f").maxLength(16).setVisible(hideMode::getValue);
 
-    /**
-     * Anarchy mode labels: "Анархия 128", "анархия#5", "Anarchy 512", and the short server codes
-     * ("ft3", "hw2", "rw1") those servers put in scoreboards and tab headers.
-     */
     private static final Pattern MODE = Pattern.compile(
-            "(?iu)(анархи\\p{L}*|anarchy)\\s*[#№]?\\s*\\d+"
-                    + "|(?<![\\p{L}\\d])(ft|hw|rw|фт|хв|рв)\\s*[-#]?\\s*\\d{1,3}(?![\\p{L}\\d])");
+            "(?iu)(\u0410\u043D\u0430\u0440\u0445\\p{L}*|anarchy|\u0433\u0440\u0438\u0444\\p{L}*|grief)(?:\\s*[#-]?\\s*\\d+)?"
+                    + "|(?<![\\p{L}\\d])(ft|hw|rw|\u0444\u0442|\u0445\u0432|\u0440\u0432)(?:\\s*[-#]?\\s*\\d{1,3})?(?![\\p{L}\\d])(?![\\s_]*(?:Helper|\u0425\u0435\u043B\u043F\u0435\u0440))");
 
     public NameProtectModule() {
         addSettings(nickname, hideMode, modeReplacement);

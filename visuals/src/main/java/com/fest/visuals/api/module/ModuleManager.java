@@ -36,10 +36,14 @@ public class ModuleManager {
                 AspectRatioModule.getInstance(),
                 ChinaHatModule.getInstance(),
                 ChunkFadeModule.getInstance(),
+                FpsBoostModule.getInstance(),
                 CriticalEffectModule.getInstance(),
                 DamageNumbersModule.getInstance(),
                 HitBubbleModule.getInstance(),
+                HitColorModule.getInstance(),
                 HitboxModule.getInstance(),
+                com.fest.visuals.client.features.modules.render.SkyColorModule.getInstance(),
+                
                 TrajectoryModule.getInstance(),
                 BlockHighlightModule.getInstance(),
                 AmbienceModule.getInstance(),
@@ -62,11 +66,17 @@ public class ModuleManager {
                 AutoSprintModule.getInstance(),
                 DeathCordsModule.getInstance(),
                 FastScrollerModule.getInstance(),
+                ItemSwapModule.getInstance(),
                 FtHelperModule.getInstance(),
+                com.fest.visuals.client.features.modules.utility.HwModule.getInstance(),
+
+                com.fest.visuals.client.features.modules.utility.RwModule.getInstance(),
+                com.fest.visuals.client.features.modules.utility.ChatHelperModule.getInstance(),
                 JarvisModule.getInstance(),
                 ZoomModule.getInstance(),
                 NameProtectModule.getInstance(),
-                SoundsModule.getInstance()
+                SoundsModule.getInstance(),
+                VfxModule.getInstance()
         );
 
         modules.sort((a, b) -> a.getName().compareToIgnoreCase(b.getName()));

@@ -26,18 +26,6 @@ import com.fest.visuals.api.utils.render.RenderUtil;
 import com.fest.visuals.api.utils.render.fonts.Fonts;
 import com.fest.visuals.client.ui.menu.MainMenuTheme;
 
-/**
- * Rebuilds the title screen to the client's design: a centre column of clock, wordmark and two
- * mode cards, a settings row beneath them, and a hold-to-exit chip in the corner.
- *
- * <p>The vanilla widgets are kept and simply moved and re-tagged, so their actions, focus and
- * narration keep working; only the painting is ours. Realms, the compact icon row, the copyright
- * link and the quit button are removed — quitting moved to the corner chip, which needs a
- * press-and-hold a vanilla button cannot express.
- *
- * <p>Extends {@link Screen} so the protected widget-management methods are reachable; the
- * constructor is never invoked, mixin classes are merged into the target.
- */
 @Mixin(TitleScreen.class)
 public abstract class MixinTitleScreenLinks extends Screen {
     private static final String SINGLEPLAYER_KEY = "menu.singleplayer";
@@ -60,7 +48,6 @@ public abstract class MixinTitleScreenLinks extends Screen {
         AbstractWidget options = null;
 
         for (GuiEventListener child : children()) {
-            // The compact icon row and the "Mojang AB" link have no place in the new layout.
             if (child instanceof SpriteIconButton || child instanceof PlainTextButton) {
                 doomed.add(child);
                 continue;
@@ -85,25 +72,27 @@ public abstract class MixinTitleScreenLinks extends Screen {
         Button packs = addRenderableWidget(Button.builder(Component.literal("Resource Packs"),
                         button -> festvisuals$openPacks())
                 .bounds(0, 0, 10, 10).build());
+                
+        Button alts = addRenderableWidget(Button.builder(Component.literal("Alts"),
+                        button -> minecraft.gui.setScreen(new com.fest.visuals.client.ui.alt.AltManagerScreen(this)))
+                .bounds(0, 0, 10, 10).build());
 
-        festvisuals$layout(single, multi, options, packs);
+        festvisuals$layout(single, multi, options, packs, alts);
 
         MainMenuTheme.assign(single, MainMenuTheme.Role.CARD_SINGLE);
         MainMenuTheme.assign(multi, MainMenuTheme.Role.CARD_MULTI);
         MainMenuTheme.assign(options, MainMenuTheme.Role.PILL_SETTINGS);
         MainMenuTheme.assign(packs, MainMenuTheme.Role.PILL_PACKS);
+        MainMenuTheme.assign(alts, MainMenuTheme.Role.PILL_PACKS);
     }
 
-    /** Positions the four survivors on the design's grid. */
     private void festvisuals$layout(AbstractWidget single, AbstractWidget multi,
-                                    AbstractWidget options, AbstractWidget packs) {
+                                    AbstractWidget options, AbstractWidget packs, AbstractWidget alts) {
         int centreX = this.width / 2;
 
         int cardGap = Math.round(MainMenuTheme.cardGap());
         int cardsTop = Math.round(MainMenuTheme.cardsTop());
 
-        // The stage is scaled off the window height, so a window narrower than 16:9 would push
-        // the pair past the edges. Shrink both cards together to keep them on screen.
         float pairFull = MainMenuTheme.cardWidth() * 2f + cardGap;
         float squeeze = Math.min(1f, (this.width * 0.94f) / pairFull);
 
@@ -118,18 +107,18 @@ public abstract class MixinTitleScreenLinks extends Screen {
 
         int pillHeight = Math.round(MainMenuTheme.pillHeight());
         int pillGap = Math.round(MainMenuTheme.pillGap());
-        // Follows the cards' real height, which the squeeze above may have reduced.
         int pillsTop = cardsTop + cardHeight + Math.round(MainMenuTheme.d(26f));
 
         int settingsWidth = festvisuals$pillWidth(MainMenuTheme.strip(options.getMessage().getString()));
         int packsWidth = festvisuals$pillWidth(MainMenuTheme.strip(packs.getMessage().getString()));
-        int rowLeft = centreX - (settingsWidth + pillGap + packsWidth) / 2;
+        int altsWidth = festvisuals$pillWidth(MainMenuTheme.strip(alts.getMessage().getString()));
+        int rowLeft = centreX - (settingsWidth + pillGap + packsWidth + pillGap + altsWidth) / 2;
 
         options.setRectangle(settingsWidth, pillHeight, rowLeft, pillsTop);
         packs.setRectangle(packsWidth, pillHeight, rowLeft + settingsWidth + pillGap, pillsTop);
+        alts.setRectangle(altsWidth, pillHeight, rowLeft + settingsWidth + pillGap + packsWidth + pillGap, pillsTop);
     }
 
-    /** Label width plus the icon and the design's 18px horizontal padding. */
     private int festvisuals$pillWidth(String label) {
         float fontSize = MainMenuTheme.d(13f);
         float width = Fonts.PS_BOLD.getWidth(label, fontSize);
@@ -140,9 +129,6 @@ public abstract class MixinTitleScreenLinks extends Screen {
         Minecraft mc = Minecraft.getInstance();
         Screen parent = this;
 
-        // PackSelectionScreen#onClose only commits the pack list, it never navigates anywhere —
-        // vanilla's callers handle that. Without this override "Done" leaves the player stuck on
-        // the pack list.
         mc.gui.setScreen(new PackSelectionScreen(
                 mc.getResourcePackRepository(),
                 repository -> mc.reloadResourcePacks(),
@@ -156,18 +142,12 @@ public abstract class MixinTitleScreenLinks extends Screen {
         });
     }
 
-    /** Clock, wordmark and the corner exit chip; the widgets paint themselves. */
     @Inject(method = "extractRenderState", at = @At("TAIL"))
     private void festvisuals$stage(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         MainMenuTheme.renderStage(RenderUtil.matrices(), this.width);
         MainMenuTheme.renderExit(RenderUtil.matrices(), mouseX, mouseY);
     }
 
-    /**
-     * Drops the "Minecraft 26.2 (modified)" stamp. It is drawn straight into the extractor
-     * rather than being a widget, so the draw call itself is redirected into nothing — this is
-     * the only text() call in the method, the logo and splash go through their own renderers.
-     */
     @Redirect(
             method = "extractRenderState",
             at = @At(
@@ -178,7 +158,6 @@ public abstract class MixinTitleScreenLinks extends Screen {
     private void festvisuals$hideVersion(GuiGraphicsExtractor extractor, Font font, String text, int x, int y, int color) {
     }
 
-    /** Matched on the translation key so it holds in every language. */
     private static String festvisuals$key(AbstractWidget widget) {
         return widget.getMessage().getContents() instanceof TranslatableContents contents
                 ? contents.getKey()

@@ -91,7 +91,7 @@ public class ArmorWidget extends Widget {
 
             // Queued after the flush, so bars land on top of the icons.
             if (durability) {
-                drawDurability(matrixStack, item, cursorX, cursorY + itemSize + barGap, itemSize, barHeight);
+                drawDurability(context, item, cursorX, cursorY + itemSize + barGap, itemSize, barHeight);
             }
 
             if (vertical) cursorY += step + gap;
@@ -99,10 +99,14 @@ public class ArmorWidget extends Widget {
         }
     }
 
-    private void drawDurability(PoseStack matrixStack, ItemStack item, float x, float y, float width, float height) {
-        float round = height / 2f;
-        RenderUtil.RECT.draw(matrixStack, x, y, width, height, round,
-                ColorUtil.setAlpha(Color.BLACK, 120));
+    /**
+     * Drawn through the vanilla GUI, in the same pass as the item icons. The client renderer flushes
+     * after the whole GUI, which put these bars on top of any screen opened over the HUD.
+     */
+    private void drawDurability(GuiGraphicsExtractor context, ItemStack item, float x, float y, float width, float height) {
+        int left = Math.round(x), top = Math.round(y);
+        int right = Math.round(x + width), bottom = Math.round(y + Math.max(1f, height));
+        context.fill(left, top, right, bottom, ColorUtil.setAlpha(Color.BLACK, 120).getRGB());
 
         if (!item.isDamageableItem() || item.getMaxDamage() <= 0) return;
 
@@ -111,7 +115,8 @@ public class ArmorWidget extends Widget {
 
         // interpolate(to, from, amount) returns `to` at 1 — full durability reads green.
         Color color = ColorUtil.interpolate(UIColors.positiveColor(), UIColors.negativeColor(), remaining);
-        RenderUtil.RECT.draw(matrixStack, x, y, width * remaining, height, round, color);
+        int filled = Math.round(x + width * remaining);
+        if (filled > left) context.fill(left, top, filled, bottom, color.getRGB());
     }
 
     private void updateItems() {

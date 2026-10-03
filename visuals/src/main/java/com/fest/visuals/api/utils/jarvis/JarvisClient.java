@@ -81,7 +81,7 @@ public class JarvisClient {
     }
 
     /** Sends one finished utterance: a JSON header frame, then the raw PCM as a binary frame. */
-    public void sendUtterance(byte[] pcm, int sampleRate, String token) {
+    public void sendUtterance(byte[] pcm, int sampleRate, String token, JsonObject extra) {
         WebSocket s = socket;
         if (s == null || pcm.length == 0) return;
 
@@ -91,6 +91,7 @@ public class JarvisClient {
         header.addProperty("bits", 16);
         header.addProperty("channels", 1);
         if (token != null && !token.isEmpty()) header.addProperty("token", token);
+        if (extra != null) extra.entrySet().forEach(entry -> header.add(entry.getKey(), entry.getValue()));
 
         s.sendText(header.toString(), true)
                 .thenCompose(ws -> ws.sendBinary(ByteBuffer.wrap(pcm), true))
@@ -121,7 +122,7 @@ public class JarvisClient {
 
             try {
                 JsonObject json = JsonParser.parseString(payload).getAsJsonObject();
-                if ("error".equals(json.get("type").getAsString())) {
+                if (json.has("type") && "error".equals(json.get("type").getAsString())) {
                     fail(json.has("message") ? json.get("message").getAsString() : "server error");
                     return null;
                 }
@@ -137,13 +138,25 @@ public class JarvisClient {
             return null;
         }
 
+        private ByteBuffer binaryBuffer;
+
         @Override
         public CompletionStage<?> onBinary(WebSocket webSocket, ByteBuffer data, boolean last) {
             webSocket.request(1);
-            if (!last || pendingResult == null) return null;
+            
+            if (binaryBuffer == null) {
+                binaryBuffer = ByteBuffer.allocate(1024 * 1024 * 5); // 5MB max
+            }
+            binaryBuffer.put(data);
 
-            byte[] wav = new byte[data.remaining()];
-            data.get(wav);
+            if (!last) return null;
+
+            binaryBuffer.flip();
+            byte[] wav = new byte[binaryBuffer.remaining()];
+            binaryBuffer.get(wav);
+            binaryBuffer = null;
+
+            if (pendingResult == null) return null;
 
             JsonObject result = pendingResult;
             pendingResult = null;

@@ -71,6 +71,25 @@ public class ThemeEditor extends UIComponent {
         ThemeManager.getInstance().refresh();
     }
 
+    /** Names of the saved themes, for voice control. */
+    public List<String> themeNames() {
+        List<String> names = new ArrayList<>();
+        for (ThemeSelectable selectable : themeSelectables) names.add(selectable.getTheme().getName());
+        return names;
+    }
+
+    /** Switches to the theme with this name (case-insensitive) and remembers it, as a click would. */
+    public boolean selectTheme(String name) {
+        for (ThemeSelectable selectable : themeSelectables) {
+            if (selectable.getTheme().getName().equalsIgnoreCase(name.trim())) {
+                currentTheme = selectable.getTheme();
+                ThemeManager.getInstance().saveLastSelected(currentTheme);
+                return true;
+            }
+        }
+        return false;
+    }
+
     public void save(boolean last) {
         if (!last) {
             ThemeManager.getInstance().saveAll();

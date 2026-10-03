@@ -38,6 +38,13 @@ public class WidgetManager {
             // Widgets that draw with the vanilla font need this frame's extractor.
             McText.setContext(event.context());
 
+            // Under an inventory, chest or menu the widgets would split in two: their backdrops are
+            // drawn before the GUI and land under the screen, their text and bars after it and land
+            // on top. Vanilla's HUD is covered there anyway, so they simply sit out until it closes.
+            // Chat stays: it is where widgets are dragged around.
+            var screen = net.minecraft.client.Minecraft.getInstance().gui.screen();
+            if (screen != null && !(screen instanceof net.minecraft.client.gui.screens.ChatScreen)) return;
+
             for (Widget widget : widgets) {
                 if (widget.isEnabled()) widget.render(event);
             }

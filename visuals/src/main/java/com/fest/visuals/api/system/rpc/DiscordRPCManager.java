@@ -3,78 +3,89 @@ package com.fest.visuals.api.system.rpc;
 import eu.donyka.discord.DiscordRPC;
 import eu.donyka.discord.discord.RichPresence;
 import eu.donyka.discord.discord.RichPresenceBuilder;
-import com.fest.visuals.api.system.backend.ClientInfo;
 import com.fest.visuals.api.system.interfaces.QuickImports;
 
+/**
+ * Discord Rich Presence for FestVisuals.
+ *
+ * <p>The bold activity title ("Играет в …") is the name of the Discord application behind
+ * {@link #APPLICATION_ID}, set in the Discord Developer Portal — no code can change it. The
+ * picture is the art asset uploaded there under the key {@code logo} (repository file
+ * {@code assets/discord/logo.png}).
+ *
+ * <p>Discord rate-limits presence updates, so the presence is only resent when what it shows
+ * actually changes.
+ */
 public class DiscordRPCManager implements QuickImports {
     private static final DiscordRPCManager INSTANCE = new DiscordRPCManager();
     public static DiscordRPCManager getInstance() { return INSTANCE; }
 
-    private DiscordRPC rpc;
-    private final String APPLICATION_ID = "1178385960824045610"; // Placeholder application ID. User must change to their own Application ID named "FestVisuals 26.2"
-    private boolean started;
-    private final long startTimestamp;
+    /** Discord application whose name is shown as the activity title: rename it to "FestVisuals 26.2". */
+    private static final String APPLICATION_ID = "1378057680316268685";
+    private static final String TITLE = "FestVisuals 26.2";
+    private static final String TELEGRAM = "https://t.me/festvisuals";
+    private static final String SITE = "https://festvisuals.pro";
 
-    public DiscordRPCManager() {
-        this.startTimestamp = System.currentTimeMillis() / 1000;
-    }
+    private final long startTimestamp = System.currentTimeMillis() / 1000;
+    private DiscordRPC rpc;
+    private volatile boolean started;
+    private String lastState;
 
     public void start() {
         if (started) return;
-        rpc = new DiscordRPC();
-        
         try {
+            rpc = new DiscordRPC();
             rpc.init(APPLICATION_ID, false);
-            updatePresence();
             started = true;
-            
-            // Thread to periodically update presence if server IP changes
-            Thread t = new Thread(() -> {
+            updatePresence();
+
+            Thread thread = new Thread(() -> {
                 while (started) {
                     try {
-                        Thread.sleep(2000);
+                        Thread.sleep(5000);
                         updatePresence();
                     } catch (InterruptedException e) {
-                        e.printStackTrace();
+                        Thread.currentThread().interrupt();
+                        return;
+                    } catch (RuntimeException ignored) {
+                        // Discord not running or IPC hiccup; the next round tries again.
                     }
                 }
-            }, "Discord-RPC-Update-Thread");
-            t.setDaemon(true);
-            t.start();
+            }, "FestVisuals-Discord-RPC");
+            thread.setDaemon(true);
+            thread.start();
         } catch (Exception e) {
-            e.printStackTrace();
+            started = false;
         }
     }
 
     public void stop() {
-        if (!started || rpc == null) return;
-        rpc.shutdown();
         started = false;
+        if (rpc != null) rpc.shutdown();
+    }
+
+    private String currentState() {
+        if (mc.level == null || mc.player == null) return "В главном меню";
+        if (mc.getCurrentServer() != null) return "Играет на " + mc.getCurrentServer().ip;
+        return "Одиночная игра";
     }
 
     public void updatePresence() {
-        if (rpc == null) return;
-        
-        String state = "В главном меню";
-        if (mc.level != null && mc.player != null) {
-            if (mc.getCurrentServer() != null) {
-                state = "Играет на " + mc.getCurrentServer().ip;
-            } else {
-                state = "Одиночная игра";
-            }
-        }
-        
+        if (rpc == null || !started) return;
+
+        String state = currentState();
+        if (state.equals(lastState)) return;
+        lastState = state;
+
         RichPresence presence = RichPresenceBuilder.builder()
-                .details("FestVisuals 26.2")
+                .details(TITLE)
                 .state(state)
                 .startTimestamp(startTimestamp)
-                // We use generic keys or URLs. The user needs to set up the avatar on Discord Developer Portal as 'logo' or pass an imgur URL
-                .largeImageKey("logo") 
-                .largeImageText("FestVisuals 26.2")
-                .button1("Сайт", "https://festvisuals.fun")
-                .button2("Телеграмм", "https://t.me/example")
+                .largeImageKey("logo")
+                .largeImageText(TITLE)
+                .button1("Telegram", TELEGRAM)
+                .button2("Сайт", SITE)
                 .build();
-                
         rpc.updatePresence(presence);
     }
 }

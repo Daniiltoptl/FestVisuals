@@ -7,7 +7,6 @@ import com.fest.visuals.api.event.events.render.Render3DEvent;
 import com.fest.visuals.api.utils.render.RenderUtil;
 import com.fest.visuals.api.command.CommandManager;
 import com.fest.visuals.api.module.ModuleManager;
-import com.fest.visuals.api.system.DiscordHook;
 import com.fest.visuals.api.system.configs.ConfigManager;
 import com.fest.visuals.api.system.configs.ConfigSkin;
 import com.fest.visuals.api.system.configs.FriendManager;
@@ -85,9 +84,9 @@ public class FestVisuals implements ClientModInitializer {
         HeartbeatService.getInstance().load();
         RenderService.getInstance().load();
         ConfigSkin.getInstance().load();
+        com.fest.visuals.api.utils.network.VisualsUsers.fetch();
         NowPlayingService.getInstance().start();
 
-        DiscordHook.startRPC();
     }
 
     public void onClose() {
@@ -100,7 +99,6 @@ public class FestVisuals implements ClientModInitializer {
         MacroManager.getInstance().save();
         NowPlayingService.getInstance().stop();
 
-        DiscordHook.stopRPC();
     }
 }
 

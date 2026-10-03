@@ -104,160 +104,143 @@ public class TrailsModule extends Module {
         addEvents(updateEvent, renderEvent);
     }
 
-    private void drawTrail(PoseStack matrixStack,
-                          boolean physics, float size, int fadeTime, int length,
-                          List<TrailParticle> particles
-    ) {
-        int index = 0;
+    
 
-        for (TrailParticle particle : particles) {
-            particle.update(physics);
-            if (index > 0) {
-                TrailParticle prevParticle = particles.get(index - 1);
-                Vec3 prevPos = prevParticle.getPosition();
-                Vec3 currentPos = particle.getPosition();
+    private void drawTrail(PoseStack matrixStack, boolean physics, float size, int fadeTime, int length, List<TrailParticle> particles) {
+        if (particles.size() < 2) return;
 
-                float smoothFactor = 0.2f;
-                Vec3 smoothedPos = new Vec3(
-                        MathUtil.interpolate(prevPos.x, currentPos.x, smoothFactor),
-                        MathUtil.interpolate(prevPos.y, currentPos.y, smoothFactor),
-                        MathUtil.interpolate(prevPos.z, currentPos.z, smoothFactor)
-                );
-                prevParticle.setPosition(smoothedPos);
-            }
-
-            RenderUtil.WORLD.startRender(matrixStack);
-            renderParticle(matrixStack, particle, size, fadeTime, length, particles);
-            RenderUtil.WORLD.endRender(matrixStack);
-
-            index++;
-        }
-    }
-
-    private void renderParticle(PoseStack matrixStack, TrailParticle particle, float size, int fadeTime, int length, List<TrailParticle> particles) {
-        particle.handleAlphaTransitions(fadeTime, length);
-        Color color = ColorUtil.setAlpha(UIColors.gradient(particle.getIndex() * 30),
-                (int) (particle.getAlpha() * brightness.getValue()));
-
-        Vec3 pos = particle.getPosition();
-
-        float bloomSize = size;
-        if (particles.indexOf(particle) > 0) {
-            TrailParticle prev = particles.get(particles.indexOf(particle) - 1);
-            double distance = pos.distanceTo(prev.getPosition());
-            bloomSize = (float) Math.max(size, Math.min(size * 3.3, distance * 4));
-        }
-
-        Matrix4f matrix = matrixStack.last().pose();
-        Camera gameRendererCamera = mc.gameRenderer.mainCamera();
         Vec3 renderCamera = mc.getEntityRenderDispatcher().camera.position();
-
-
-        matrixStack.translate(pos.x - renderCamera.x, pos.y - renderCamera.y, pos.z - renderCamera.z);
-
-        // Yaw only. Tilting with the camera pitch is what rounded the mark into a blob; keeping the
-        // quad upright leaves a flat ribbon that still turns to face the player.
-        matrixStack.mulPose(Axis.YP.rotationDegrees(-gameRendererCamera.yRot()));
-
-        float halfWidth = bloomSize * narrow.getValue();
-        float halfHeight = bloomSize * stretch.getValue();
-        int argb = color.getRGB();
-
         VertexConsumer bufferBuilder = throughWalls.getValue()
                 ? RenderUtil.WORLD.xrayQuads()
                 : RenderUtil.WORLD.occludedQuads();
-        bufferBuilder.addVertex(matrix, halfWidth, -halfHeight, 0f).setColor(argb);
-        bufferBuilder.addVertex(matrix, -halfWidth, -halfHeight, 0f).setColor(argb);
-        bufferBuilder.addVertex(matrix, -halfWidth, halfHeight, 0f).setColor(argb);
-        bufferBuilder.addVertex(matrix, halfWidth, halfHeight, 0f).setColor(argb);
+
+        RenderUtil.WORLD.startRender(matrixStack);
+        
+        Matrix4f matrix = matrixStack.last().pose();
+        
+        // Update particles first
+        for (TrailParticle particle : particles) {
+            particle.update(physics);
+            particle.handleAlphaTransitions(fadeTime, length);
+        }
+        
+        for (int i = 1; i < particles.size(); i++) {
+            TrailParticle particle = particles.get(i);
+            TrailParticle prevParticle = particles.get(i - 1);
+            
+            Color color = ColorUtil.setAlpha(UIColors.gradient(particle.getIndex() * 30), (int) (particle.getAlpha() * brightness.getValue()));
+            Color prevColor = ColorUtil.setAlpha(UIColors.gradient(prevParticle.getIndex() * 30), (int) (prevParticle.getAlpha() * brightness.getValue()));
+            
+            int argb = color.getRGB();
+            int prevArgb = prevColor.getRGB();
+
+            Vec3 pos = new Vec3(particle.x, particle.y, particle.z).subtract(renderCamera);
+            Vec3 pPos = new Vec3(prevParticle.x, prevParticle.y, prevParticle.z).subtract(renderCamera);
+
+            float halfHeight = size * stretch.getValue(); 
+            float halfWidth = size * narrow.getValue();
+
+            Vec3 dir = pos.subtract(pPos);
+            double dirLen = dir.length();
+            Vec3 perp = new Vec3(0, 0, 0);
+            if (dirLen > 0.0001) {
+                perp = new Vec3(-dir.z, 0, dir.x).normalize().scale(halfWidth);
+            }
+
+            // Horizontal ribbon
+            bufferBuilder.addVertex(matrix, (float)(pos.x + perp.x), (float)(pos.y), (float)(pos.z + perp.z)).setColor(argb);
+            bufferBuilder.addVertex(matrix, (float)(pos.x - perp.x), (float)(pos.y), (float)(pos.z - perp.z)).setColor(argb);
+            bufferBuilder.addVertex(matrix, (float)(pPos.x - perp.x), (float)(pPos.y), (float)(pPos.z - perp.z)).setColor(prevArgb);
+            bufferBuilder.addVertex(matrix, (float)(pPos.x + perp.x), (float)(pPos.y), (float)(pPos.z + perp.z)).setColor(prevArgb);
+
+            // Vertical ribbon
+            bufferBuilder.addVertex(matrix, (float)pos.x, (float)(pos.y + halfHeight), (float)pos.z).setColor(argb);
+            bufferBuilder.addVertex(matrix, (float)pos.x, (float)(pos.y - halfHeight), (float)pos.z).setColor(argb);
+            bufferBuilder.addVertex(matrix, (float)pPos.x, (float)(pPos.y - halfHeight), (float)pPos.z).setColor(prevArgb);
+            bufferBuilder.addVertex(matrix, (float)pPos.x, (float)(pPos.y + halfHeight), (float)pPos.z).setColor(prevArgb);
+        }
+        
+        RenderUtil.WORLD.endRender(matrixStack);
     }
 
     @Getter
     @Setter
     public static class TrailParticle {
-        private Vec3 position;
-        private Vec3 velocity;
+        public double x, y, z;
+        public double vx, vy, vz;
         private final int index;
-        private final TimerUtil timer = new TimerUtil();
-        private final AnimationUtil alphaAnimation = new AnimationUtil();
+        private final long startTime;
         private float alpha = 255f;
 
         public TrailParticle(Vec3 position, int index) {
-            this.position = position;
-            this.velocity = new Vec3(
-                    MathUtil.randomInRange(-0.01, 0.01),
-                    MathUtil.randomInRange(-0.01, 0.01),
-                    MathUtil.randomInRange(-0.01, 0.01)
-            );
+            this.x = position.x;
+            this.y = position.y;
+            this.z = position.z;
+            this.vx = MathUtil.randomInRange(-0.01, 0.01);
+            this.vy = MathUtil.randomInRange(-0.01, 0.01);
+            this.vz = MathUtil.randomInRange(-0.01, 0.01);
             this.index = index;
+            this.startTime = System.currentTimeMillis();
         }
 
         public void handleAlphaTransitions(int fadeTime, int maxLife) {
-            alphaAnimation.update();
-            float currentAlpha = (float) alphaAnimation.getValue();
-
-            if (currentAlpha <= 0.0 && !timer.finished(fadeTime)) {
-                alphaAnimation.run(255.0, fadeTime, Easing.LINEAR);
+            long age = System.currentTimeMillis() - startTime;
+            if (age > maxLife - fadeTime) {
+                float progress = (float)(age - (maxLife - fadeTime)) / fadeTime;
+                alpha = Math.max(0, 255f * (1f - progress));
             }
-
-            if (currentAlpha >= 255.0 && timer.finished(maxLife - fadeTime)) {
-                alphaAnimation.run(0.0, fadeTime, Easing.LINEAR);
-            }
-
-            alpha = (float) alphaAnimation.getValue();
-        }
-
-        public boolean shouldRemove(int maxLife) {
-            double distance = position.distanceTo(mc.player.position());
-            boolean expired = timer.finished(maxLife) && alpha <= 0.0;
-
-            return distance >= 80 || expired;
         }
 
         public void update(boolean enablePhysics) {
-            if (enablePhysics) {
-                applyPhysics();
-            } else {
-                updateWithoutPhysics();
-            }
+            if (enablePhysics) applyPhysics();
+            else updateWithoutPhysics();
         }
 
+        private static final net.minecraft.core.BlockPos.MutableBlockPos MUTABLE_POS = new net.minecraft.core.BlockPos.MutableBlockPos();
+
         private void applyPhysics() {
-            if (isSolidBlock(position.x, position.y, position.z + velocity.z)) {
-                velocity = new Vec3(velocity.x, velocity.y, -velocity.z * 0.8);
+            if (isSolidBlock(x, y, z + vz)) vz = -vz * 0.8;
+            if (isSolidBlock(x, y + vy, z)) {
+                vx *= 0.999;
+                vy = -vy * 0.7;
+                vz *= 0.999;
             }
+            if (isSolidBlock(x + vx, y, z)) vx = -vx * 0.8;
 
-            if (isSolidBlock(position.x, position.y + velocity.y, position.z)) {
-                velocity = new Vec3(velocity.x * 0.999, -velocity.y * 0.7, velocity.z * 0.999);
-            }
+            vy -= 0.005; // gravity
+            vx *= 0.98; // friction
+            vy *= 0.98;
+            vz *= 0.98;
 
-            if (isSolidBlock(position.x + velocity.x, position.y, position.z)) {
-                velocity = new Vec3(-velocity.x * 0.8, velocity.y, velocity.z);
-            }
-
-            updateWithoutPhysics();
+            x += vx;
+            y += vy;
+            z += vz;
         }
 
         private void updateWithoutPhysics() {
-            position = position.add(velocity);
-            velocity = velocity.scale(0.999);
+            vy -= 0.005;
+            vx *= 0.98;
+            vy *= 0.98;
+            vz *= 0.98;
+            x += vx;
+            y += vy;
+            z += vz;
         }
 
-        private boolean isSolidBlock(double x, double y, double z) {
-            BlockPos pos = BlockPos.containing(x, y, z);
-            BlockState state = mc.level.getBlockState(pos);
-            Block block = state.getBlock();
-            return isValidBlock(block);
+        private boolean isSolidBlock(double bx, double by, double bz) {
+            MUTABLE_POS.set(bx, by, bz);
+            net.minecraft.world.level.block.state.BlockState state = mc.level.getBlockState(MUTABLE_POS);
+            return isValidBlock(state.getBlock());
         }
 
-        private boolean isValidBlock(Block block) {
-            return !(block instanceof AirBlock)
-                    && !(block instanceof ButtonBlock)
-                    && !(block instanceof TorchBlock)
-                    && !(block instanceof LeverBlock)
-                    && !(block instanceof BasePressurePlateBlock)
-                    && !(block instanceof CarpetBlock)
-                    && !(block instanceof LiquidBlock);
+        private boolean isValidBlock(net.minecraft.world.level.block.Block block) {
+            return block != net.minecraft.world.level.block.Blocks.AIR && 
+                   block != net.minecraft.world.level.block.Blocks.WATER && 
+                   block != net.minecraft.world.level.block.Blocks.LAVA;
         }
+
+        public int getIndex() { return index; }
+        public float getAlpha() { return alpha; }
+        public boolean shouldRemove(int maxLife) { return System.currentTimeMillis() - startTime > maxLife; }
     }
 }

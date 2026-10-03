@@ -75,6 +75,7 @@ public class HitBubbleModule extends Module {
     }
 
     private void onHit(CombatTracker.Hit hit) {
+        if (hit.entity().isInvisible()) return;
         if (!trigger.is("Урон прошёл") || hit.heal() || !hit.ours()) return;
         spawn(hit.entity(), hit.crit());
     }

@@ -1,50 +1,69 @@
-# FestVisuals Launcher
+# Welcome to your Lovable project
 
-Простой лаунчер без внешних зависимостей (только встроенные модули Node.js).
-Скачивает нужный jar мода из последнего GitHub Release и кладёт его в папку
-`mods/` вашего Fabric-профиля. Сам Minecraft запускается штатным
-лаунчером/Fabric-профилем — этот инструмент отвечает только за доставку
-и обновление мода.
+## Project info
 
-## Запуск
+**URL**: https://lovable.dev/projects/81061537-155b-4dc7-b254-101fc98168bb
 
-```bash
-node src/index.js
+## How can I edit this code?
+
+There are several ways of editing your application.
+
+**Use Lovable**
+
+Simply visit the [Lovable Project](https://lovable.dev/projects/81061537-155b-4dc7-b254-101fc98168bb) and start prompting.
+
+Changes made via Lovable will be committed automatically to this repo.
+
+**Use your preferred IDE**
+
+If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+
+The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+
+Follow these steps:
+
+```sh
+# Step 1: Clone the repository using the project's Git URL.
+git clone <YOUR_GIT_URL>
+
+# Step 2: Navigate to the project directory.
+cd <YOUR_PROJECT_NAME>
+
+# Step 3: Install the necessary dependencies.
+npm i
+
+# Step 4: Start the development server with auto-reloading and an instant preview.
+npm run dev
 ```
 
-При первом запуске создастся `config.json` из `config.example.json` —
-заполните его перед повторным запуском:
+**Edit a file directly in GitHub**
 
-```json
-{
-  "githubOwner": "ваш-аккаунт",
-  "githubRepo": "FestVisuals",
-  "tier": "free",       // или "paid"
-  "licenseKey": null,    // обязателен для "paid"
-  "modsDir": "auto"      // или свой путь
-}
-```
+- Navigate to the desired file(s).
+- Click the "Edit" button (pencil icon) at the top right of the file view.
+- Make your changes and commit the changes.
 
-## Free / Paid
+**Use GitHub Codespaces**
 
-- `tier: "free"` — скачивает `festvisuals-free.jar` из последнего релиза.
-- `tier: "paid"` — скачивает `festvisuals-paid.jar`, требует `licenseKey`.
+- Navigate to the main page of your repository.
+- Click on the "Code" button (green button) near the top right.
+- Select the "Codespaces" tab.
+- Click on "New codespace" to launch a new Codespace environment.
+- Edit files directly within the Codespace and commit and push your changes once you're done.
 
-**Важно:** проверка `licenseKey` в текущем виде — это только заглушка на
-стороне клиента (`assertLicense` в `src/index.js`). Она лишь не даёт
-скачать paid-сборку без ключа, но никак не проверяет его подлинность.
-Для реальной защиты платной версии нужен свой backend, который:
-1. Принимает `licenseKey` и проверяет его в базе (например, после оплаты
-   через Stripe/ЮKassa и т.п.);
-2. Отдаёт временную подписанную ссылку на приватный paid-ассет
-   (GitHub Releases assets can be public — для приватной раздачи платной
-   сборки лучше использовать приватное хранилище, а не публичный релиз).
+## What technologies are used for this project?
 
-Эта часть сознательно не реализована здесь, так как требует вашей
-инфраструктуры (сервер, платёжная система, база лицензий).
+This project is built with .
 
-## Дальнейшее развитие
+- Vite
+- TypeScript
+- React
+- shadcn-ui
+- Tailwind CSS
 
-Текущая версия — CLI-скрипт. Для полноценного GUI-лаунчера (иконка,
-кнопка «Играть», автообновление лаунчера) можно обернуть эту логику в
-Electron/Tauri, переиспользовав `src/index.js` как ядро загрузки.
+## How can I deploy this project?
+
+Simply open [Lovable](https://lovable.dev/projects/81061537-155b-4dc7-b254-101fc98168bb) and click on Share -> Publish.
+
+## I want to use a custom domain - is that possible?
+
+We don't support custom domains (yet). If you want to deploy your project under your own domain then we recommend using Netlify. Visit our docs for more details: [Custom domains](https://docs.lovable.dev/tips-tricks/custom-domain/)

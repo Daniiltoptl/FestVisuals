@@ -23,6 +23,7 @@ import com.fest.visuals.api.module.ModuleRegister;
 import com.fest.visuals.api.module.setting.BooleanSetting;
 import com.fest.visuals.api.module.setting.ColorSetting;
 import com.fest.visuals.api.module.setting.SliderSetting;
+import com.fest.visuals.api.module.setting.ModeSetting;
 
 /**
  * Highlights the best deals on the FunTime auction.
@@ -35,16 +36,18 @@ import com.fest.visuals.api.module.setting.SliderSetting;
  * <p>The drawing is done by the container screen mixin, behind each item, so nothing covers
  * the item itself.
  */
-@ModuleRegister(name = "Auction Helper", desc = "Подсвечивает самые дешёвые лоты на аукционе FT", category = Category.OTHER)
+@ModuleRegister(name = "Auction Helper", desc = "\u041F\u043E\u0434\u0441\u0432\u0435\u0442\u043A\u0430 \u0434\u0435\u0448\u0435\u0432\u044B\u0445 \u043B\u043E\u0442\u043E\u0432 \u043D\u0430 \u0430\u0443\u043A\u0446\u0438\u043E\u043D\u0430\u0445", category = Category.OTHER)
 public class AuctionHelperModule extends Module {
     @Getter private static final AuctionHelperModule instance = new AuctionHelperModule();
 
-    public final BooleanSetting onlyAuction = new BooleanSetting("Только в аукционе").value(true);
-    public final SliderSetting top = new SliderSetting("Сколько подсвечивать").value(3f).range(1f, 10f).step(1f);
-    public final BooleanSetting perItem = new BooleanSetting("Лучшая цена за штуку").value(true);
-    public final BooleanSetting pulse = new BooleanSetting("Пульсация").value(true);
-    public final ColorSetting cheapColor = new ColorSetting("Цвет дешёвых").value(new Color(60, 255, 110, 190));
-    public final ColorSetting perItemColor = new ColorSetting("Цвет за штуку").value(new Color(255, 210, 60, 190));
+    public final ModeSetting server = new ModeSetting("\u0421\u0435\u0440\u0432\u0435\u0440").value("FunTime").values("FunTime", "HolyWorld", "ReallyWorld");
+
+    public final BooleanSetting onlyAuction = new BooleanSetting("\u0422\u043E\u043B\u044C\u043A\u043E \u0410\u0425").value(true);
+    public final SliderSetting top = new SliderSetting("\u0422\u043E\u043F \u043B\u043E\u0442\u043E\u0432").value(3f).range(1f, 10f).step(1f);
+    public final BooleanSetting pulse = new BooleanSetting("\u041F\u0443\u043B\u044C\u0441\u0430\u0446\u0438\u044F").value(true);
+    public final BooleanSetting perItem = new BooleanSetting("\u0417\u0430 \u0448\u0442\u0443\u043a\u0443").value(true);
+    public final ColorSetting cheapestColor = new ColorSetting("\u0426\u0432\u0435\u0442 \u043B\u0443\u0447\u0448\u0435\u0433\u043E").value(new Color(60, 255, 110, 190));
+    public final ColorSetting cheapestUnitColor = new ColorSetting("\u0426\u0432\u0435\u0442 \u043B\u0443\u0447\u0448\u0435\u0433\u043E \u0437\u0430 \u0448\u0442").value(new Color(255, 210, 60, 190));
 
     private static final Pattern NUMBER = Pattern.compile("(\\d+(?:[\\s\\u00A0,._'’]\\d{3})*(?:[.,]\\d+)?)\\s*([kкmмbб]{0,2})(?![\\p{L}])",
             Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
@@ -56,7 +59,7 @@ public class AuctionHelperModule extends Module {
     private Slot bestPerItem;
 
     public AuctionHelperModule() {
-        addSettings(onlyAuction, top, perItem, pulse, cheapColor, perItemColor);
+        addSettings(server, onlyAuction, top, pulse, perItem, cheapestColor, cheapestUnitColor);
     }
 
     @Override
@@ -71,7 +74,11 @@ public class AuctionHelperModule extends Module {
 
     private static boolean looksLikeAuction(Component title) {
         String text = title.getString().toLowerCase(Locale.ROOT);
-        return text.contains("аукцион") || text.contains("поиск") || text.contains("auction") || text.contains("маркет");
+        return text.contains("\u0430\u0443\u043a\u0446\u0438\u043e\u043d") ||
+               text.contains("\u0440\u044b\u043d\u043e\u043a") ||
+               text.contains("auction") ||
+               text.contains("\u043f\u043e\u0438\u0441\u043a") ||
+               text.contains("search");
     }
 
     /** Called once per frame before the slots are drawn. */
@@ -114,14 +121,14 @@ public class AuctionHelperModule extends Module {
 
         float wave = pulse.getValue() ? (float) (0.55 + 0.45 * Math.sin(System.currentTimeMillis() / 180.0)) : 1f;
 
-        if (slot == bestPerItem) return argb(perItemColor.getValue(), wave);
+        if (slot == bestPerItem) return argb(cheapestUnitColor.getValue(), wave);
 
         Integer rank = ranks.get(slot);
         if (rank == null) return 0;
 
         int count = Math.max(1, Math.min(ranks.size(), top.getValue().intValue()));
         float strength = count == 1 ? 1f : 1f - rank / (float) count * 0.7f;
-        return argb(cheapColor.getValue(), wave * strength);
+        return argb(cheapestColor.getValue(), wave * strength);
     }
 
     public boolean isCheapest(Slot slot) {
@@ -140,19 +147,42 @@ public class AuctionHelperModule extends Module {
         if (lore == null) return -1;
 
         long best = -1;
+        String srv = instance.server.getValue();
         for (Component line : lore.lines()) {
-            String text = line.getString().replaceAll("§[0-9a-fk-or]", "");
+            String text = line.getString().replaceAll("(?i)\\\\u00A7[0-9a-fk-or]", "");
             String lower = text.toLowerCase(Locale.ROOT);
-            boolean pricey = lower.contains("цена") || lower.contains("стоим") || lower.contains("price")
-                    || lower.contains("$") || lower.contains("¤") || lower.contains("монет");
-            if (!pricey || lower.contains("истек") || lower.contains("осталось")) continue;
-
-            // "Цена за 1 шт" style lines are per-item; scale them back up to the lot.
-            boolean perUnit = lower.contains("за 1") || lower.contains("за шт") || lower.contains("/шт");
-            long value = parse(text);
-            if (value <= 0) continue;
-            if (perUnit) value *= Math.max(1, stack.getCount());
-            best = Math.max(best, value);
+            
+            if ("FunTime".equals(srv)) {
+                boolean pricey = lower.contains("\u0446\u0435\u043D") || lower.contains("\u0441\u0442\u043E\u0438\u043C\u043E\u0441\u0442") || lower.contains("price")
+                        || lower.contains("$") || lower.contains("\u0444\u0442") || lower.contains("\u0442\u043E\u043A\u0435\u043D");
+                if (!pricey || lower.contains("\u0448\u0442") || lower.contains("\u043F\u0440\u0435\u0434\u043C\u0435\u0442")) continue;
+                boolean perUnit = lower.contains("\u0437\u0430 1") || lower.contains("\u0437\u0430 \u0448") || lower.contains("/\u0448");
+                long value = parse(text);
+                if (value <= 0) continue;
+                if (perUnit) value *= Math.max(1, stack.getCount());
+                best = Math.max(best, value);
+            } else if ("HolyWorld".equals(srv)) {
+                boolean pricey = lower.contains("\u0446\u0435\u043D") || lower.contains("$") || lower.contains("\u0441\u0442\u043E\u0438\u043C\u043E\u0441\u0442");
+                if (!pricey) continue;
+                boolean perUnit = lower.contains("\u0437\u0430 1") || lower.contains("\u0437\u0430 \u0448") || lower.contains("\u0448\u0442");
+                long value = parse(text);
+                if (value <= 0) continue;
+                if (perUnit) value *= Math.max(1, stack.getCount());
+                best = Math.max(best, value);
+            } else if ("ReallyWorld".equals(srv)) {
+                boolean pricey = lower.contains("\u0446\u0435\u043D") || lower.contains("$") || lower.contains("\u0441\u0442\u043E\u0438\u043C\u043E\u0441\u0442") || lower.contains("\u043C\u043E\u043D\u0435\u0442");
+                if (!pricey) continue;
+                boolean perUnit = lower.contains("\u0437\u0430 1") || lower.contains("\u0437\u0430 \u0448");
+                long value = parse(text);
+                if (value <= 0) continue;
+                if (perUnit) value *= Math.max(1, stack.getCount());
+                best = Math.max(best, value);
+            } else {
+                long value = parse(text);
+                if (value > 0) {
+                    best = Math.max(best, value);
+                }
+            }
         }
         return best;
     }

@@ -43,11 +43,18 @@ public class AutoAuthModule extends Module {
     /** A server that keeps asking after we answered gets a few more tries, spaced out. */
     private static final int MAX_ATTEMPTS = 3;
     private static final long RETRY_AFTER_MS = 5000L;
+    /**
+     * Auth plugins ask right after joining. Outside this window no chat, title or action-bar text
+     * can make the module send the password, so text other players manage to put in front of you
+     * later in a session cannot fish it out.
+     */
+    private static final long AUTH_WINDOW_MS = 60_000L;
 
     private String pending;
     private int countdown = -1;
     private int attempts;
     private long lastSentAt;
+    private long joinedAt;
 
     public AutoAuthModule() {
         addSettings(password, delay);
@@ -60,8 +67,10 @@ public class AutoAuthModule extends Module {
 
             if (event.packet() instanceof ClientboundLoginPacket) {
                 reset();
+                joinedAt = System.currentTimeMillis();
                 return;
             }
+            if (System.currentTimeMillis() - joinedAt > AUTH_WINDOW_MS) return;
 
             if (pending != null || password.isEmpty() || attempts >= MAX_ATTEMPTS) return;
             // The prompt usually repeats every few seconds; only answer again once the previous

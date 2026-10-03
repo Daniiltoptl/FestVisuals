@@ -49,7 +49,7 @@ public class BindComponent extends SettingComponent {
         float reverseAnim = (float) (1.0 - animation.getValue());
 
         float valueSize = fontSize * 0.9f;
-        String noneText = "Нема";
+        String noneText = "\u043d\u0435\u0442\u0443";
         String valueText = setting.getValue() == -999 ? noneText : KeyStorage.getBind(setting.getValue());
         String bindingText = "...";
         float valueWidth = mediumFont.getWidth(valueText, valueSize);
@@ -87,7 +87,7 @@ public class BindComponent extends SettingComponent {
 
     @Override
     public void mouseClicked(double mouseX, double mouseY, int button) {
-        if (bind && button != 1 && button != 0) {
+        if (bind) {
             setting.setValue(-100 + button);
             bind = false;
             return;

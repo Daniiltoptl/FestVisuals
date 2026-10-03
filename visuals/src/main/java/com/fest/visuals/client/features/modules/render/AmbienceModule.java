@@ -31,9 +31,6 @@ public class AmbienceModule extends Module {
 
     private final SliderSetting time = new SliderSetting("Время").value(-1f).range(-1f, 24000f).step(100f);
     public final ModeSetting weather = new ModeSetting("Погода").value(Weather.SUNNY).values(Weather.values());
-
-    
-
     public AmbienceModule() {
         addSettings(time, weather);
     }

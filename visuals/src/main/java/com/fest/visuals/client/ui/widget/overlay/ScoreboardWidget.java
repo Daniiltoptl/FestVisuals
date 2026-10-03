@@ -75,7 +75,7 @@ public class ScoreboardWidget extends Widget {
         float rowGap = scaled(2f);
         float titleSize = fontSize;
 
-        String title = objective.getDisplayName().getString();
+        String title = objective.getDisplayName().getString().replaceAll("(?i)\\u00A7.", "");
         boolean showScores = cfg.numbers.getValue();
 
         // Width follows the widest line, so long team names are not clipped.
@@ -129,6 +129,6 @@ public class ScoreboardWidget extends Widget {
     /** Applies the owner's team prefix, suffix and colour, the way vanilla does. */
     private static String displayName(Scoreboard scoreboard, PlayerScoreEntry entry) {
         PlayerTeam team = scoreboard.getPlayersTeam(entry.owner());
-        return PlayerTeam.formatNameForTeam(team, entry.ownerName()).getString();
+        return PlayerTeam.formatNameForTeam(team, entry.ownerName()).getString().replaceAll("(?i)\\u00A7.", "");
     }
 }

@@ -30,6 +30,7 @@ loom {
 }
 
 repositories {
+    flatDir { dirs 'libs' }
 	mavenCentral()
 	maven {
 		name = "FirstDark"
@@ -82,6 +83,10 @@ dependencies {
 	}
 
 	implementation "org.json:json:${project.json_version}"
+    implementation name: 'shine'
+    include name: 'shine'
+    implementation name: 'atmospherics'
+    include name: 'atmospherics'
 }
 
 // Client game tests (./gradlew runClientGameTest) live in their own source set and never ship:
@@ -144,6 +149,7 @@ publishing {
 		}
 	}
 }
+
 
 
 

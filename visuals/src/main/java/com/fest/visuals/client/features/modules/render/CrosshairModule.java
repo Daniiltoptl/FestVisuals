@@ -150,17 +150,23 @@ public class CrosshairModule extends Module {
         bar(matrices, centreX - size / 2f, centreY - size / 2f, size, size, tint);
     }
 
-    /** Drawn from short chords rather than a texture, so it scales with the size setting. */
+    /**
+     * Rasterised pixel by pixel: every pixel whose centre lies within half the thickness of the
+     * radius is filled. Placing small squares along the circumference and rounding them to the
+     * pixel grid made a lopsided, almost-round ring.
+     */
     private void circle(PoseStack matrices, float centreX, float centreY, Color tint) {
         float radius = dotSize.getValue() + 2f;
-        float t = thickness.getValue();
-        int steps = 32;
+        float half = Math.max(0.5f, thickness.getValue() / 2f);
+        int reach = (int) Math.ceil(radius + half) + 1;
 
-        for (int i = 0; i < steps; i++) {
-            double angle = i * Math.PI * 2 / steps;
-            float x = centreX + (float) Math.cos(angle) * radius;
-            float y = centreY + (float) Math.sin(angle) * radius;
-            bar(matrices, x - t / 2f, y - t / 2f, t, t, tint);
+        for (int dy = -reach; dy < reach; dy++) {
+            for (int dx = -reach; dx < reach; dx++) {
+                double distance = Math.hypot(dx + 0.5, dy + 0.5);
+                if (Math.abs(distance - radius) <= half) {
+                    bar(matrices, centreX + dx, centreY + dy, 1f, 1f, tint);
+                }
+            }
         }
     }
 

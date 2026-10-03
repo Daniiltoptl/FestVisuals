@@ -42,29 +42,29 @@ import com.fest.visuals.api.utils.render.display.WorldShapes;
  * FunTime item helper: while one of the server's special items is in hand, shows the area it
  * will affect, and turns it green when using it right now would catch an enemy.
  *
- * <p>Radii come from the items' own lore on FunTime ("радиус: 10 блоков" and so on): дезориентация,
- * явная пыль and огненный смерч hit 10 blocks around you, снежок-заморозка 7 around where it
- * lands, божья аура 2, взрывная штучка 5. Трапки are cages around your head block — 5x5x5, 9x9x9
- * for the explosive one — and пласт is a 5x2x5 slab on the face you are looking at.
+ * <p>Radii come from the items' own lore on FunTime ("\u0440\u0430\u0434\u0438\u0443\u0441: 10 \u0431\u043B\u043E\u043A\u043E\u0432" and so on): \u0434\u0435\u0437\u043E\u0440\u0438\u0435\u043D\u0442\u0430\u0446\u0438\u044F,
+ * \u044F\u0432\u043D\u0430\u044F \u043F\u044B\u043B\u044C and \u043E\u0433\u043D\u0435\u043D\u043D\u044B\u0439 \u0441\u043C\u0435\u0440\u0447 hit 10 blocks around you, \u0441\u043D\u0435\u0436\u043E\u043A-\u0437\u0430\u043C\u043E\u0440\u043E\u0437\u043A\u0430 7 around where it
+ * lands, \u0431\u043E\u0436\u044C\u044F \u0430\u0443\u0440\u0430 2, \u0432\u0437\u0440\u044B\u0432\u043D\u0430\u044F \u0448\u0442\u0443\u0447\u043A\u0430 5. \u0422\u0440\u0430\u043F\u043A\u0438 are cages around your head block \u2014 5x5x5, 9x9x9
+ * for the explosive one \u2014 and \u043F\u043B\u0430\u0441\u0442 is a 5x2x5 slab on the face you are looking at.
  *
  * <p>Items are recognised by type and by name, since FunTime reuses ordinary items (an ender eye
- * is only дезориентация if the server named it so); the name check can be switched off for
+ * is only \u0434\u0435\u0437\u043E\u0440\u0438\u0435\u043D\u0442\u0430\u0446\u0438\u044F if the server named it so); the name check can be switched off for
  * servers that name them differently.
  */
-@ModuleRegister(name = "FT Helper", desc = "Радиус дезки, пыли, трапки, пласта и др. — зелёный, если враг в зоне", category = Category.OTHER)
+@ModuleRegister(name = "FT Helper", desc = "\u0420\u0430\u0434\u0438\u0443\u0441 \u0434\u0435\u0437\u043A\u0438, \u043F\u044B\u043B\u0438, \u0442\u0440\u0430\u043F\u043A\u0438, \u043F\u043B\u0430\u0441\u0442\u0430 \u0438 \u0434\u0440. \u2014 \u0437\u0435\u043B\u0451\u043D\u044B\u0439, \u0435\u0441\u043B\u0438 \u0432\u0440\u0430\u0433 \u0432 \u0437\u043E\u043D\u0435", category = Category.OTHER)
 public class FtHelperModule extends Module {
     @Getter private static final FtHelperModule instance = new FtHelperModule();
 
-    public final BooleanSetting circles = new BooleanSetting("Дезка / пыль / смерч / аура").value(true);
-    public final BooleanSetting traps = new BooleanSetting("Трапки и стан").value(true);
-    public final BooleanSetting plast = new BooleanSetting("Пласт").value(true);
-    public final BooleanSetting snowball = new BooleanSetting("Снежок-заморозка").value(true);
-    public final BooleanSetting strictNames = new BooleanSetting("Проверять название").value(true);
-    public final BooleanSetting fill = new BooleanSetting("Заливка").value(true);
-    public final BooleanSetting markEnemies = new BooleanSetting("Отмечать врагов в зоне").value(true);
-    public final SliderSetting lineWidth = new SliderSetting("Толщина").value(2f).range(0.5f, 6f).step(0.25f);
-    public final ColorSetting color = new ColorSetting("Цвет").value(new Color(255, 90, 60, 230));
-    public final ColorSetting enemyColor = new ColorSetting("Цвет, если враг в зоне").value(new Color(60, 255, 120, 240));
+    public final BooleanSetting circles = new BooleanSetting("\u0414\u0435\u0437\u043A\u0430 / \u043F\u044B\u043B\u044C / \u0441\u043C\u0435\u0440\u0447 / \u0430\u0443\u0440\u0430").value(true);
+    public final BooleanSetting traps = new BooleanSetting("\u0422\u0440\u0430\u043F\u043A\u0438 \u0438 \u0441\u0442\u0430\u043D").value(true);
+    public final BooleanSetting plast = new BooleanSetting("\u041F\u043B\u0430\u0441\u0442").value(true);
+    public final BooleanSetting snowball = new BooleanSetting("\u0421\u043D\u0435\u0436\u043E\u043A-\u0437\u0430\u043C\u043E\u0440\u043E\u0437\u043A\u0430").value(true);
+    public final BooleanSetting strictNames = new BooleanSetting("\u041F\u0440\u043E\u0432\u0435\u0440\u044F\u0442\u044C \u043D\u0430\u0437\u0432\u0430\u043D\u0438\u0435").value(true);
+    public final BooleanSetting fill = new BooleanSetting("\u0417\u0430\u043B\u0438\u0432\u043A\u0430").value(true);
+    public final BooleanSetting markEnemies = new BooleanSetting("\u041E\u0442\u043C\u0435\u0447\u0430\u0442\u044C \u0432\u0440\u0430\u0433\u043E\u0432 \u0432 \u0437\u043E\u043D\u0435").value(true);
+    public final SliderSetting lineWidth = new SliderSetting("\u0422\u043E\u043B\u0449\u0438\u043D\u0430").value(2f).range(0.5f, 6f).step(0.25f);
+    public final ColorSetting color = new ColorSetting("\u0426\u0432\u0435\u0442").value(new Color(255, 90, 60, 230));
+    public final ColorSetting enemyColor = new ColorSetting("\u0426\u0432\u0435\u0442, \u0435\u0441\u043B\u0438 \u0432\u0440\u0430\u0433 \u0432 \u0437\u043E\u043D\u0435").value(new Color(60, 255, 120, 240));
 
     private enum Shape { CIRCLE, CUBE, PLAST, IMPACT }
 
@@ -72,17 +72,17 @@ public class FtHelperModule extends Module {
     private record FtItem(String name, Item item, String keyword, Shape shape, double size) {}
 
     private static final List<FtItem> ITEMS = List.of(
-            new FtItem("Дезориентация", Items.ENDER_EYE, "дезориент", Shape.CIRCLE, 10),
-            new FtItem("Явная пыль", Items.SUGAR, "пыль", Shape.CIRCLE, 10),
-            new FtItem("Огненный смерч", Items.FIRE_CHARGE, "смерч", Shape.CIRCLE, 10),
-            new FtItem("Взрывная штучка", Items.FIRE_CHARGE, "взрывн", Shape.CIRCLE, 5),
-            new FtItem("Божья аура", Items.PHANTOM_MEMBRANE, "аура", Shape.CIRCLE, 2),
-            new FtItem("Снежок-заморозка", Items.SNOWBALL, "замороз", Shape.IMPACT, 7),
-            new FtItem("Трапка", Items.NETHERITE_SCRAP, "трап", Shape.CUBE, 2),
-            new FtItem("Трапка", Items.POPPED_CHORUS_FRUIT, "трап", Shape.CUBE, 2),
-            new FtItem("Взрывная трапка", Items.PRISMARINE_SHARD, "трап", Shape.CUBE, 4),
-            new FtItem("Стан", Items.NETHER_STAR, "стан", Shape.CUBE, 15),
-            new FtItem("Пласт", Items.DRIED_KELP, "пласт", Shape.PLAST, 0)
+            new FtItem("\u0414\u0435\u0437\u043E\u0440\u0438\u0435\u043D\u0442\u0430\u0446\u0438\u044F", Items.ENDER_EYE, "\u0434\u0435\u0437\u043E\u0440\u0438\u0435\u043D\u0442", Shape.CIRCLE, 10),
+            new FtItem("\u042F\u0432\u043D\u0430\u044F \u043F\u044B\u043B\u044C", Items.SUGAR, "\u043F\u044B\u043B\u044C", Shape.CIRCLE, 10),
+            new FtItem("\u041E\u0433\u043D\u0435\u043D\u043D\u044B\u0439 \u0441\u043C\u0435\u0440\u0447", Items.FIRE_CHARGE, "\u0441\u043C\u0435\u0440\u0447", Shape.CIRCLE, 10),
+            new FtItem("\u0412\u0437\u0440\u044B\u0432\u043D\u0430\u044F \u0448\u0442\u0443\u0447\u043A\u0430", Items.FIRE_CHARGE, "\u0432\u0437\u0440\u044B\u0432\u043D", Shape.CIRCLE, 5),
+            new FtItem("\u0411\u043E\u0436\u044C\u044F \u0430\u0443\u0440\u0430", Items.PHANTOM_MEMBRANE, "\u0430\u0443\u0440\u0430", Shape.CIRCLE, 2),
+            new FtItem("\u0421\u043D\u0435\u0436\u043E\u043A-\u0437\u0430\u043C\u043E\u0440\u043E\u0437\u043A\u0430", Items.SNOWBALL, "\u0437\u0430\u043C\u043E\u0440\u043E\u0437", Shape.IMPACT, 7),
+            new FtItem("\u0422\u0440\u0430\u043F\u043A\u0430", Items.NETHERITE_SCRAP, "\u0442\u0440\u0430\u043F", Shape.CUBE, 2),
+            new FtItem("\u0422\u0440\u0430\u043F\u043A\u0430", Items.POPPED_CHORUS_FRUIT, "\u0442\u0440\u0430\u043F", Shape.CUBE, 2),
+            new FtItem("\u0412\u0437\u0440\u044B\u0432\u043D\u0430\u044F \u0442\u0440\u0430\u043F\u043A\u0430", Items.PRISMARINE_SHARD, "\u0442\u0440\u0430\u043F", Shape.CUBE, 4),
+            new FtItem("\u0421\u0442\u0430\u043D", Items.NETHER_STAR, "\u0441\u0442\u0430\u043D", Shape.CUBE, 15),
+            new FtItem("\u041F\u043B\u0430\u0441\u0442", Items.DRIED_KELP, "\u043F\u043B\u0430\u0441\u0442", Shape.PLAST, 0)
     );
 
     /** Eased 0..1 values: how far the shape has grown in, and how green it currently is. */
@@ -118,7 +118,7 @@ public class FtHelperModule extends Module {
     }
 
     private static String plain(Component component) {
-        return component.getString().replaceAll("§[0-9a-fk-or]", "").toLowerCase(Locale.ROOT);
+        return component.getString().replaceAll("\u00A7[0-9a-fk-or]", "").toLowerCase(Locale.ROOT);
     }
 
     private FtItem identify(ItemStack stack) {
@@ -325,7 +325,7 @@ public class FtHelperModule extends Module {
     }
 
     private boolean drawPlast(VertexConsumer buffer, Matrix4f matrix, long now) {
-        if (!(mc.hitResult instanceof BlockHitResult hit) || hit.getType() != HitResult.Type.BLOCK) return false;
+        if (!(mc.hitResult instanceof BlockHitResult hit)) return false;
 
         BlockPos target = hit.getBlockPos();
         Direction side = hit.getDirection();
