@@ -3,34 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import http from 'http';
 import { spawn } from 'child_process';
-import { Client } from 'minecraft-launcher-core';
-import fs from 'fs';
-import https from 'https';
-import { createRequire } from 'module';
-
-// minecraft-launcher-core SHA-1 hashes every asset and library (thousands of files) on every
-// launch, which is most of the wait. After one full verification the fast path only checks that
-// each file exists — anything missing is still downloaded — and a full check runs again weekly
-// or after a launch that did not reach the game window.
-const require = createRequire(import.meta.url);
-const Handler = require('minecraft-launcher-core/components/handler.js');
-const originalCheckSum = Handler.prototype.checkSum;
-let fastVerify = false;
-Handler.prototype.checkSum = function (hash, file) {
-  if (fastVerify) return Promise.resolve(fs.existsSync(file));
-  return originalCheckSum.call(this, hash, file);
-};
-const FULL_CHECK_EVERY_MS = 7 * 24 * 60 * 60 * 1000;
-function markerPath(root) { return path.join(root, '.festvisuals-verified'); }
-function verifiedRecently(root) {
-  try {
-    return Date.now() - fs.statSync(markerPath(root)).mtimeMs < FULL_CHECK_EVERY_MS;
-  } catch {
-    return false;
-  }
-}
-
-const launcher = new Client();
+import { launchGame } from './game.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -117,95 +90,19 @@ function createWindow() {
     const { root, ram, username } = config;
     console.log("Launching game in", root, "with username", username);
 
-    let opts = {
-      clientPackage: null,
-      authorization: {
-        access_token: '0',
-        client_token: '0',
-        uuid: '00000000-0000-0000-0000-000000000000',
-        name: username || 'Player',
-        user_properties: '{}',
-        meta: {
-          type: 'offline',
-          demo: false
-        }
-      },
-      root: root,
-      version: {
-        number: "26.2",
-        type: "release",
-        custom: "fabric-loader-0.19.5-26.2"
-      },
-      memory: {
-        max: `${ram}M`,
-        min: `${ram / 2}M`
-      }
+    // The mod jar ships inside the launcher (see scripts/bundle-mod.mjs).
+    const modJar = app.isPackaged
+      ? path.join(process.resourcesPath, 'mod', 'festvisuals.jar')
+      : path.join(__dirname, '..', 'mod', 'festvisuals.jar');
+    const emit = (channel, payload) => {
+      if (!event.sender.isDestroyed()) event.sender.send(channel, payload);
     };
 
-    // Auto-install Fabric API if missing
-    const modsDir = path.join(root, 'mods');
-    if (!fs.existsSync(modsDir)) {
-      fs.mkdirSync(modsDir, { recursive: true });
-    }
-    
-    const fabricApiUrl = 'https://cdn.modrinth.com/data/P7dR8mSH/versions/ewUK83HI/fabric-api-0.161.0%2B26.2.jar';
-    const fabricApiPath = path.join(modsDir, 'fabric-api.jar');
-    
-    if (!fs.existsSync(fabricApiPath)) {
-      console.log('Downloading Fabric API...');
-      event.sender.send('launch-progress', { type: 'FABRIC API', percent: 0 });
-      
-      await new Promise((resolve, reject) => {
-        const file = fs.createWriteStream(fabricApiPath);
-        https.get(fabricApiUrl, (response) => {
-          response.pipe(file);
-          file.on('finish', () => {
-            file.close();
-            resolve(true);
-          });
-        }).on('error', (err) => {
-          fs.unlink(fabricApiPath, () => {});
-          reject(err);
-        });
-      });
-      console.log('Fabric API downloaded.');
-    }
-
-    // Listeners are attached per launch and dropped afterwards; adding them every time used to
-    // stack a new copy on each click.
-    launcher.removeAllListeners('progress');
-    launcher.removeAllListeners('data');
-    launcher.removeAllListeners('close');
-
-    let windowOpen = false;
-    launcher.on('progress', (e) => {
-      // e.type is typically 'assets', 'natives', 'classes', 'libraries'
-      const percent = e.total ? Math.round((e.task / e.total) * 100) : 0;
-      event.sender.send('launch-progress', { type: e.type, percent });
-    });
-    launcher.on('data', (line) => {
-      const text = String(line);
-      // LWJGL reports its backend as the game window is created: from here the player sees the game.
-      if (!windowOpen && (text.includes('Backend library:') || text.includes('Sound engine started'))) {
-        windowOpen = true;
-        try { fs.writeFileSync(markerPath(root), String(Date.now())); } catch {}
-        event.sender.send('game-ready');
-      }
-    });
-    launcher.on('close', (code) => {
-      // A launch that never opened the window may have hit a broken file: verify fully next time.
-      if (!windowOpen) { try { fs.rmSync(markerPath(root), { force: true }); } catch {} }
-      event.sender.send('game-closed', code);
-    });
-
-    fastVerify = verifiedRecently(root);
     try {
-      await launcher.launch(opts);
-      // The process is up, but the window takes a while: the UI says "starting" until game-ready.
-      event.sender.send('launch-success');
+      await launchGame({ root, ram, username, modJar }, emit);
     } catch (err) {
       console.error(err);
-      event.sender.send('launch-error', err.message);
+      emit('launch-error', err.message);
     } finally {
       isLaunching = false;
     }

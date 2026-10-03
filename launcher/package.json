@@ -11,8 +11,8 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
-    "pack": "electron-builder --dir",
-    "dist": "electron-builder"
+    "pack": "node scripts/bundle-mod.mjs && electron-builder --dir",
+    "dist": "node scripts/bundle-mod.mjs && electron-builder"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
@@ -102,6 +102,15 @@
     ],
     "win": {
       "target": "nsis"
-    }
+    },
+    "extraResources": [
+      {
+        "from": "mod",
+        "to": "mod",
+        "filter": [
+          "festvisuals.jar"
+        ]
+      }
+    ]
   }
 }

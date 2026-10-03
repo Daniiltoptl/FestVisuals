@@ -3,11 +3,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Folder, HardDrive, Monitor, Settings as SettingsIcon } from "lucide-react";
+import { gameDir as savedGameDir } from "@/lib/gameDir";
 
 const Settings = () => {
   // Load settings from localStorage or use defaults
   const [ram, setRam] = useState(() => Number(localStorage.getItem('settings_ram')) || 4096);
-  const [gameDir, setGameDir] = useState(() => localStorage.getItem('settings_dir') || 'D:/FestVisualss');
+  const [gameDir, setGameDir] = useState(() => savedGameDir());
   const [resW, setResW] = useState(() => localStorage.getItem('settings_res_w') || '1920');
   const [resH, setResH] = useState(() => localStorage.getItem('settings_res_h') || '1080');
   const [fullscreen, setFullscreen] = useState(() => localStorage.getItem('settings_fullscreen') === 'true');

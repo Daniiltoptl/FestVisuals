@@ -25,3 +25,4 @@ dist-ssr
 
 # electron-builder output (installers, unpacked app)
 release
+mod

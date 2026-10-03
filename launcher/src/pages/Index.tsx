@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Play, ArrowRight, Download, Loader2, Check } from "lucide-react";
+import { gameDir } from "@/lib/gameDir";
 
 const Index = () => {
   const [status, setStatus] = useState<'idle' | 'checking' | 'downloading' | 'starting' | 'playing'>('idle');
@@ -18,7 +19,12 @@ const Index = () => {
         'assets': 'АССЕТОВ',
         'natives': 'ДВИЖКА',
         'classes': 'ЯДРА',
-        'libraries': 'БИБЛИОТЕК'
+        'libraries': 'БИБЛИОТЕК',
+        'classes-custom': 'FABRIC',
+        'classes-maven-custom': 'FABRIC',
+        'version-jar': 'ИГРЫ',
+        'java': 'JAVA',
+        'fabric': 'FABRIC API'
       };
       setDownloadType(typeTranslations[data.type] || data.type);
     };
@@ -66,11 +72,11 @@ const Index = () => {
     if (!electron) return;
 
     const ram = Number(localStorage.getItem('settings_ram')) || 4096;
-    const gameDir = localStorage.getItem('settings_dir') || 'D:/FestVisualss';
+    const root = gameDir();
     const username = localStorage.getItem('user_login') || 'FestPlayer';
 
     setStatus('checking');
-    electron.ipcRenderer.send('launch-game', { root: gameDir, ram, username });
+    electron.ipcRenderer.send('launch-game', { root, ram, username });
   };
 
   // Reset after some time if "in game" just for demo purposes (optional)

@@ -16,6 +16,9 @@
 	"icon": "assets/festvisuals/icon.png",
 	"environment": "client",
 	"entrypoints": {
+		"preLaunch": [
+			"com.fest.visuals.FestPreLaunch"
+		],
 		"client": [
 			"com.fest.visuals.FestVisuals"
 		]
