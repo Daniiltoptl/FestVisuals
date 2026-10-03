@@ -20,8 +20,8 @@ public class DiscordRPCManager implements QuickImports {
     private static final DiscordRPCManager INSTANCE = new DiscordRPCManager();
     public static DiscordRPCManager getInstance() { return INSTANCE; }
 
-    /** Discord application whose name is shown as the activity title: rename it to "FestVisuals 26.2". */
-    private static final String APPLICATION_ID = "1378057680316268685";
+    /** The "FestVisuals 26.2" Discord application; its name is the activity title. */
+    private static final String APPLICATION_ID = "1523428711196524716";
     private static final String TITLE = "FestVisuals 26.2";
     private static final String TELEGRAM = "https://t.me/festvisuals";
     private static final String SITE = "https://festvisuals.pro";
