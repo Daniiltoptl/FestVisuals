@@ -1,4 +1,4 @@
-﻿import fs from 'node:fs'
+import fs from 'node:fs'
 import path from 'node:path'
 import zlib from 'node:zlib'
 
@@ -38,6 +38,8 @@ export function extractZip(zipPath, destDir) {
 		}
 
 		const target = path.join(destDir, name)
+		// Never write outside destDir ("../" or absolute entry names).
+		if (path.relative(destDir, target).startsWith('..') || path.isAbsolute(path.relative(destDir, target))) continue
 		if (name.endsWith('/')) {
 			fs.mkdirSync(target, { recursive: true })
 			continue
