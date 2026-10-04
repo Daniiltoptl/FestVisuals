@@ -1,5 +1,13 @@
 package com.fest.visuals.client.features.modules.utility;
 
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import lombok.Getter;
@@ -58,28 +66,91 @@ public class JarvisModule extends Module {
     private final JarvisAudioPlayer player = new JarvisAudioPlayer();
     private final JarvisClient client = new JarvisClient();
 
+    /** The launcher's loopback control endpoint; it starts the local Jarvis server on request. */
+    private static final URI LAUNCHER_START = URI.create("http://127.0.0.1:4567/start-jarvis");
+    /** Lazy for the same reason as in JarvisClient: never let networking setup break mod load. */
+    private HttpClient launcherHttp;
+    /** When the launcher was last asked to start the local server; also "is it starting now". */
+    private volatile long startRequestedAt;
+    /** Failed connects since the launcher said it started the server; reset on a good connect. */
+    private int failedAfterStart;
+
+    private String lastNotice = "";
+    private long lastNoticeAt;
+
     private boolean holding;
 
     public JarvisModule() {
         addSettings(key, processing, sttModel, useGpu, voice, volume, cues, printReply);
 
+        client.onOpen(() -> failedAfterStart = 0);
         client.onResult((json, wav) -> mc.execute(() -> handleResult(json, wav)));
-                client.onError(message -> mc.execute(() -> {
-            if (message != null && message.contains("ConnectException")) {
-                if ("\u041b\u043e\u043a\u0430\u043b\u044c\u043d\u0430\u044f".equals(processing.getValue())) {
-                    TextUtil.sendMessage("Jarvis: \u041b\u043e\u043a\u0430\u043b\u044c\u043d\u044b\u0439 \u0441\u0435\u0440\u0432\u0435\u0440 \u043d\u0435 \u0437\u0430\u043f\u0443\u0449\u0435\u043d! \u0417\u0430\u043f\u0443\u0441\u0442\u0438\u0442\u0435 \u043b\u0430\u0443\u043d\u0447\u0435\u0440.");
+        client.onError(message -> mc.execute(() -> {
+            boolean refused = message != null && message.contains("ConnectException");
+            if (!refused) {
+                notice("Jarvis: " + message);
+            } else if (isLocal()) {
+                // Nothing is listening locally: ask the launcher to bring the server up.
+                if (startRequestedAt != 0 && ++failedAfterStart >= 4) {
+                    notice("Jarvis: \u043b\u043e\u043a\u0430\u043b\u044c\u043d\u044b\u0439 \u0441\u0435\u0440\u0432\u0435\u0440 \u043d\u0435 \u043f\u043e\u0434\u043d\u044f\u043b\u0441\u044f \u2014 \u043f\u0440\u043e\u0432\u0435\u0440\u044c Python \u0438 \u0437\u0430\u0432\u0438\u0441\u0438\u043c\u043e\u0441\u0442\u0438 jarvis-server (requirements.txt)");
                 } else {
-                    TextUtil.sendMessage("Jarvis: \u041d\u0435\u0442 \u0441\u0432\u044f\u0437\u0438 \u0441 \u0441\u0435\u0440\u0432\u0435\u0440\u043e\u043c (" + message + ")");
+                    requestLocalServer();
                 }
             } else {
-                TextUtil.sendMessage("Jarvis: " + message);
+                notice("Jarvis: \u043d\u0435\u0442 \u0441\u0432\u044f\u0437\u0438 \u0441 \u0441\u0435\u0440\u0432\u0435\u0440\u043e\u043c Jarvis");
             }
+        }));
+    }
+
+    private boolean isLocal() {
+        return "\u041b\u043e\u043a\u0430\u043b\u044c\u043d\u0430\u044f".equals(processing.getValue());
+    }
+
+    /** Chat message, but the same text at most once every few seconds \u2014 no wall of duplicates. */
+    private void notice(String text) {
+        long now = System.currentTimeMillis();
+        if (text.equals(lastNotice) && now - lastNoticeAt < 4000) return;
+        lastNotice = text;
+        lastNoticeAt = now;
+        TextUtil.sendMessage(text);
+    }
+
+    /**
+     * Asks the launcher to start the local server, then connects once it has had a moment to bind
+     * its port. Throttled so a held key or repeated failures do not hammer the launcher.
+     */
+    private void requestLocalServer() {
+        long now = System.currentTimeMillis();
+        if (now - startRequestedAt < 6000) return;
+        startRequestedAt = now;
+
+        HttpRequest request = HttpRequest.newBuilder(LAUNCHER_START).timeout(Duration.ofSeconds(4)).GET().build();
+        try {
+            if (launcherHttp == null) launcherHttp = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(2)).build();
+        } catch (RuntimeException e) {
+            notice("Jarvis: сеть недоступна (" + e.getMessage() + ")");
+            return;
+        }
+        launcherHttp.sendAsync(request, HttpResponse.BodyHandlers.ofString()).whenComplete((response, error) -> mc.execute(() -> {
+            if (error != null) {
+                startRequestedAt = 0;
+                notice("Jarvis: \u043b\u0430\u0443\u043d\u0447\u0435\u0440 \u043d\u0435 \u0437\u0430\u043f\u0443\u0449\u0435\u043d \u2014 \u043e\u0442\u043a\u0440\u043e\u0439 FestVisuals Launcher, \u043e\u043d \u043f\u043e\u0434\u043d\u0438\u043c\u0435\u0442 \u043b\u043e\u043a\u0430\u043b\u044c\u043d\u044b\u0439 \u0441\u0435\u0440\u0432\u0435\u0440");
+                return;
+            }
+            if (response.statusCode() != 200) {
+                notice("Jarvis: " + response.body());
+                return;
+            }
+            notice("Jarvis: \u0437\u0430\u043f\u0443\u0441\u043a\u0430\u044e \u043b\u043e\u043a\u0430\u043b\u044c\u043d\u044b\u0439 \u0441\u0435\u0440\u0432\u0435\u0440\u2026");
+            CompletableFuture.delayedExecutor(3, TimeUnit.SECONDS).execute(() -> client.connect(getServerUrl()));
         }));
     }
 
     @Override
     public void onEvent() {
         addEvents(TickEvent.getInstance().subscribe(new Listener<>(event -> tick())));
+        // Warm the local server up as soon as the module is on, so the first phrase finds it ready.
+        if (isLocal()) client.connect(getServerUrl());
     }
 
     @Override
@@ -130,10 +201,12 @@ public class JarvisModule extends Module {
         if (!send || pcm.length < MIN_UTTERANCE_BYTES) return;
 
         if (!client.isConnected()) {
-            if ("\u041b\u043e\u043a\u0430\u043b\u044c\u043d\u0430\u044f".equals(processing.getValue())) {
-                TextUtil.sendMessage("Jarvis: \u041b\u043e\u043a\u0430\u043b\u044c\u043d\u044b\u0439 \u0441\u0435\u0440\u0432\u0435\u0440 \u043d\u0435 \u0437\u0430\u043f\u0443\u0449\u0435\u043d! \u0417\u0430\u043f\u0443\u0441\u0442\u0438\u0442\u0435 \u043b\u0430\u0443\u043d\u0447\u0435\u0440.");
+            if (isLocal() && System.currentTimeMillis() - startRequestedAt < 20000) {
+                notice("Jarvis: \u043b\u043e\u043a\u0430\u043b\u044c\u043d\u044b\u0439 \u0441\u0435\u0440\u0432\u0435\u0440 \u0435\u0449\u0451 \u0437\u0430\u043f\u0443\u0441\u043a\u0430\u0435\u0442\u0441\u044f \u2014 \u043f\u043e\u0432\u0442\u043e\u0440\u0438 \u0447\u0435\u0440\u0435\u0437 \u043f\u0430\u0440\u0443 \u0441\u0435\u043a\u0443\u043d\u0434");
+            } else if (isLocal()) {
+                requestLocalServer();
             } else {
-                TextUtil.sendMessage("Jarvis: \u043d\u0435\u0442 \u0441\u0432\u044f\u0437\u0438 \u0441 \u0441\u0435\u0440\u0432\u0435\u0440\u043e\u043c");
+                notice("Jarvis: \u043d\u0435\u0442 \u0441\u0432\u044f\u0437\u0438 \u0441 \u0441\u0435\u0440\u0432\u0435\u0440\u043e\u043c Jarvis");
             }
             return;
         }

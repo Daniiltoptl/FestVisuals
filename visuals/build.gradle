@@ -188,7 +188,8 @@ tasks.register('obfuscateJar', ProGuardTask) {
 	}
 }
 
-tasks.named('build') { dependsOn 'obfuscateJar' }
+// Not part of `build`: the ProGuard step fails on JDK 25 (no jmods) and its output crashed the
+// client, so the default build ships the plain jar. Run `gradlew obfuscateJar` explicitly to try it.
 
 
 

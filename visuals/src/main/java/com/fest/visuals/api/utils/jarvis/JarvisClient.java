@@ -26,10 +26,28 @@ import java.util.function.Consumer;
  * that isn't thread-safe on its own.
  */
 public class JarvisClient {
-    private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
+    /**
+     * Created on first use, not when the module class loads: building an HttpClient opens a
+     * selector, and on a machine where that fails (e.g. an unusable temp path for the JDK's
+     * loopback socket) doing it eagerly would take the whole mod down at startup.
+     */
+    private HttpClient http;
+
+    private synchronized HttpClient http() {
+        if (http == null) http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
+        return http;
+    }
 
     private volatile WebSocket socket;
     private volatile boolean connecting;
+
+    /**
+     * Tail of every send issued so far. A java.net.http WebSocket rejects a new send with
+     * "IllegalStateException: Send pending" while the previous one is still going out, which is
+     * exactly what happens when the next phrase is released before a large PCM frame has finished
+     * uploading. Each send is chained onto this future so they leave strictly one after another.
+     */
+    private CompletableFuture<WebSocket> sendTail = CompletableFuture.completedFuture(null);
 
     private Runnable onOpen;
     private Runnable onClose;
@@ -54,12 +72,16 @@ public class JarvisClient {
 
         CompletableFuture<WebSocket> future;
         try {
-            future = http.newWebSocketBuilder()
+            future = http().newWebSocketBuilder()
                     .connectTimeout(Duration.ofSeconds(5))
                     .buildAsync(URI.create(url), new FrameListener());
         } catch (IllegalArgumentException e) {
             connecting = false;
             fail("Bad server address: " + e.getMessage());
+            return;
+        } catch (RuntimeException e) {
+            connecting = false;
+            fail("Network unavailable: " + e.getMessage());
             return;
         }
 
@@ -68,6 +90,9 @@ public class JarvisClient {
             if (error != null) {
                 fail(error.getMessage());
                 return;
+            }
+            synchronized (JarvisClient.this) {
+                sendTail = CompletableFuture.completedFuture(ws); // fresh socket, nothing in flight
             }
             socket = ws;
             if (onOpen != null) onOpen.run();
@@ -93,12 +118,19 @@ public class JarvisClient {
         if (token != null && !token.isEmpty()) header.addProperty("token", token);
         if (extra != null) extra.entrySet().forEach(entry -> header.add(entry.getKey(), entry.getValue()));
 
-        s.sendText(header.toString(), true)
-                .thenCompose(ws -> ws.sendBinary(ByteBuffer.wrap(pcm), true))
-                .exceptionally(error -> {
-                    fail(error.getMessage());
-                    return null;
-                });
+        String json = header.toString();
+        synchronized (this) {
+            sendTail = sendTail
+                    // A failed earlier send must not block the ones after it.
+                    .handle((ignored, error) -> null)
+                    .thenCompose(ignored -> s.sendText(json, true))
+                    .thenCompose(ws -> ws.sendBinary(ByteBuffer.wrap(pcm), true));
+            sendTail.exceptionally(error -> {
+                Throwable cause = error.getCause() != null ? error.getCause() : error;
+                fail(cause.getClass().getSimpleName() + ": " + cause.getMessage());
+                return null;
+            });
+        }
     }
 
     private void fail(String message) {

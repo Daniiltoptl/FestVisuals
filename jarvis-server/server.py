@@ -20,6 +20,9 @@ import stt
 import tts
 
 load_dotenv()
+# A launcher-installed copy has no .env next to it; the launcher points at the user's own file.
+if os.environ.get("JARVIS_ENV_FILE"):
+    load_dotenv(os.environ["JARVIS_ENV_FILE"], override=False)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("jarvis.server")
