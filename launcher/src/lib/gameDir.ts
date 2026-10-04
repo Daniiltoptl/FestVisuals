@@ -11,3 +11,15 @@ export function defaultGameDir(): string {
 export function gameDir(): string {
   return localStorage.getItem('settings_dir') || defaultGameDir();
 }
+
+/** Total physical RAM in MB, rounded down to a 512 MB step; 8192 when it cannot be read. */
+export function totalRamMb(): number {
+  const req = (window as any).require;
+  if (!req) return 8192;
+  try {
+    const bytes = req('os').totalmem();
+    return Math.max(2048, Math.floor(bytes / 1024 / 1024 / 512) * 512);
+  } catch {
+    return 8192;
+  }
+}

@@ -32,7 +32,10 @@ const FULL_CHECK_EVERY_MS = 7 * 24 * 60 * 60 * 1000;
 let fastVerify = false;
 const originalCheckSum = Handler.prototype.checkSum;
 Handler.prototype.checkSum = function (hash, file) {
-  if (fastVerify) return Promise.resolve(fs.existsSync(file));
+  // Fast path still rejects empty files, so a zero-byte download is re-fetched rather than kept.
+  if (fastVerify) {
+    try { return Promise.resolve(fs.statSync(file).size > 0); } catch { return Promise.resolve(false); }
+  }
   return originalCheckSum.call(this, hash, file);
 };
 
@@ -48,6 +51,48 @@ Handler.prototype.checkJava = function (java) {
     });
   });
 };
+
+/**
+ * A jar is only sound if it ends with the ZIP end-of-central-directory record. An interrupted or
+ * empty download leaves a truncated or zero-byte file that minecraft-launcher-core happily keeps
+ * (its re-download-on-bad-checksum path is broken), and the game then dies with
+ * "zip file is empty" / "error reading ...jar". We delete such files so the next launch refetches.
+ */
+function isWholeZip(file) {
+  let fd;
+  try {
+    const size = fs.statSync(file).size;
+    if (size < 22) return false; // smaller than an empty zip's EOCD record
+    fd = fs.openSync(file, 'r');
+    const span = Math.min(size, 65557); // max comment length + EOCD size
+    const buf = Buffer.alloc(span);
+    fs.readSync(fd, buf, 0, span, size - span);
+    return buf.indexOf(Buffer.from([0x50, 0x4b, 0x05, 0x06])) !== -1; // "PK\x05\x06"
+  } catch {
+    return false;
+  } finally {
+    if (fd !== undefined) try { fs.closeSync(fd); } catch {}
+  }
+}
+
+/** Removes every corrupt jar under the game folder so the launcher re-downloads clean copies. */
+function removeCorruptJars(root) {
+  const roots = [path.join(root, 'libraries'), path.join(root, 'versions')];
+  let removed = 0;
+  const walk = (dir) => {
+    let entries;
+    try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+    for (const entry of entries) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) walk(full);
+      else if (entry.name.endsWith('.jar') && !isWholeZip(full)) {
+        try { fs.rmSync(full, { force: true }); removed++; } catch {}
+      }
+    }
+  };
+  roots.forEach(walk);
+  return removed;
+}
 
 function markerPath(root) { return path.join(root, '.festvisuals-verified'); }
 function verifiedRecently(root) {
@@ -222,6 +267,9 @@ export async function launchGame({ root: requestedRoot, ram, username, modJar },
     ensureFabricProfile(root),
     ensureMods(root, modJar, progress),
   ]);
+
+  // Drop any half-downloaded jar from a previous run so the verify/download below replaces it.
+  removeCorruptJars(root);
 
   const launcher = new Client();
   let windowOpen = false;

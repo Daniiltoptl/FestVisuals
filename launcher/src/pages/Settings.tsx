@@ -3,11 +3,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Folder, HardDrive, Monitor, Settings as SettingsIcon } from "lucide-react";
-import { gameDir as savedGameDir } from "@/lib/gameDir";
+import { gameDir as savedGameDir, totalRamMb } from "@/lib/gameDir";
 
 const Settings = () => {
   // Load settings from localStorage or use defaults
-  const [ram, setRam] = useState(() => Number(localStorage.getItem('settings_ram')) || 4096);
+  const maxRam = totalRamMb();
+  const [ram, setRam] = useState(() => Math.min(Number(localStorage.getItem('settings_ram')) || 4096, maxRam));
   const [gameDir, setGameDir] = useState(() => savedGameDir());
   const [resW, setResW] = useState(() => localStorage.getItem('settings_res_w') || '1920');
   const [resH, setResH] = useState(() => localStorage.getItem('settings_res_h') || '1080');
@@ -48,23 +49,25 @@ const Settings = () => {
               <div className="flex items-center justify-between text-sm font-bold text-white mb-2">
                 <span>1024 MB</span>
                 <span className="text-primary">{ram} MB</span>
-                <span>8192 MB</span>
+                <span>{maxRam} MB</span>
               </div>
-              <input 
-                type="range" 
-                min="1024" 
-                max="8192" 
-                step="512" 
-                value={ram} 
+              <input
+                type="range"
+                min="1024"
+                max={maxRam}
+                step="512"
+                value={ram}
                 onChange={(e) => setRam(Number(e.target.value))}
                 className="w-full accent-primary h-2 bg-secondary rounded-lg appearance-none cursor-pointer"
               />
               <div className="flex justify-between gap-4 mt-4">
-                <Input 
-                  type="number" 
-                  value={ram} 
-                  onChange={(e) => setRam(Number(e.target.value))}
-                  className="bg-secondary/50 border-border text-center font-mono" 
+                <Input
+                  type="number"
+                  min={1024}
+                  max={maxRam}
+                  value={ram}
+                  onChange={(e) => setRam(Math.max(1024, Math.min(maxRam, Number(e.target.value))))}
+                  className="bg-secondary/50 border-border text-center font-mono"
                 />
               </div>
             </div>

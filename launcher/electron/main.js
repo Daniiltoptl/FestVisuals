@@ -18,8 +18,12 @@ const server = http.createServer((req, res) => {
     if (!jarvisProcess) {
       console.log('Starting Jarvis from Minecraft command...');
       const jarvisDir = path.join(process.cwd(), '../jarvis-server');
-      jarvisProcess = spawn('python', ['server.py'], { cwd: jarvisDir });
-      
+      // pythonw has no console; windowsHide stops a terminal window from flashing up on screen,
+      // which players mistook for malware. stdio ignored so the detached child needs no pipes.
+      const python = process.platform === 'win32' ? 'pythonw' : 'python3';
+      jarvisProcess = spawn(python, ['server.py'], { cwd: jarvisDir, windowsHide: true, stdio: 'ignore' });
+
+      jarvisProcess.on('error', () => { jarvisProcess = null; });
       jarvisProcess.on('close', () => {
         jarvisProcess = null;
       });
@@ -53,7 +57,7 @@ function createWindow() {
     width: 1200,
     height: 800,
     title: 'FestVisuals Launcher',
-    icon: path.join(__dirname, 'icon.jpg'),
+    icon: path.join(__dirname, 'icon.png'),
     autoHideMenuBar: true,
     frame: false,
     webPreferences: {
