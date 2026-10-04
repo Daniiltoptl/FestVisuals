@@ -203,7 +203,9 @@ public class NowPlayingService {
                 csc.toString(),
                 "-nologo",
                 "-optimize+",
-                "-target:exe",
+                // winexe, not exe: a console subsystem child launched from javaw pops up its own
+                // window, which players took for a virus. Stdout still reaches our redirected pipe.
+                "-target:winexe",
                 "-out:" + exe.toAbsolutePath()
         ));
 
@@ -300,6 +302,7 @@ public class NowPlayingService {
      * thumbnail is read with a WinRT DataReader rather than the AsStreamForRead extension.
      */
     private static final String BRIDGE_SOURCE = """
+            // FestVisuals media bridge (windowless build).
             using System;
             using System.Diagnostics;
             using System.Globalization;
