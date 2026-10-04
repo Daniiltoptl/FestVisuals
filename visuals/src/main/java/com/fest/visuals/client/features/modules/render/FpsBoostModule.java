@@ -1,6 +1,7 @@
 package com.fest.visuals.client.features.modules.render;
 
 import lombok.Getter;
+import com.fest.visuals.api.utils.render.AdaptiveBudget;
 
 import com.fest.visuals.api.module.Category;
 import com.fest.visuals.api.module.Module;
@@ -38,15 +39,15 @@ public class FpsBoostModule extends Module {
     }
 
     public double blockEntityCutoffSqr() {
-        return isEnabled() && blockEntities.getValue() ? square(blockEntityDistance.getValue()) : Double.MAX_VALUE;
+        return isEnabled() && blockEntities.getValue() ? square(blockEntityDistance.getValue() * AdaptiveBudget.getInstance().factor()) : Double.MAX_VALUE;
     }
 
     public double fallingBlockCutoffSqr() {
-        return isEnabled() && fallingBlocks.getValue() ? 48.0 * 48.0 : Double.MAX_VALUE;
+        return isEnabled() && fallingBlocks.getValue() ? square(48.0 * AdaptiveBudget.getInstance().factor()) : Double.MAX_VALUE;
     }
 
     public double itemCutoffSqr() {
-        return isEnabled() && items.getValue() ? square(itemDistance.getValue()) : Double.MAX_VALUE;
+        return isEnabled() && items.getValue() ? square(itemDistance.getValue() * AdaptiveBudget.getInstance().factor()) : Double.MAX_VALUE;
     }
 
     public boolean singleItemModel() {

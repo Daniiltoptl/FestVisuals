@@ -13,6 +13,7 @@ import com.fest.visuals.api.system.configs.ConfigSkin;
 import com.fest.visuals.api.system.configs.MacroManager;
 import com.fest.visuals.api.system.draggable.DraggableManager;
 import com.fest.visuals.api.system.interfaces.QuickImports;
+import com.fest.visuals.api.utils.render.AdaptiveBudget;
 
 public class HeartbeatService implements QuickImports {
     @Getter private static final HeartbeatService instance = new HeartbeatService();
@@ -38,6 +39,14 @@ public class HeartbeatService implements QuickImports {
                     }
                 });
             }
+
+            
+            int targetFps = mc.options.framerateLimit().get();
+            if (targetFps >= 260) {
+                targetFps = mc.getWindow().getRefreshRate();
+                if (targetFps == 0) targetFps = 60;
+            }
+            AdaptiveBudget.getInstance().sample(mc.getFps(), targetFps);
 
             GpsManager.getInstance().update(event.context());
         }));

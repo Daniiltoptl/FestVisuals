@@ -8,6 +8,8 @@ import lombok.Setter;
 import lombok.experimental.UtilityClass;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.network.chat.Component;
+
 import com.fest.visuals.api.utils.render.fonts.Fonts;
 import org.joml.Matrix3x2fStack;
 
@@ -30,6 +32,13 @@ public class McText {
     /** The extractor for the frame being built, set by the widget manager before it draws. */
     @Setter private GuiGraphicsExtractor context;
 
+    
+    public float getWidth(Component text, float size) {
+        if (text == null) return 0f;
+        if (context == null) return Fonts.PS_MEDIUM.getWidth(text, size);
+        return Minecraft.getInstance().font.width(text) * (size / BASE_HEIGHT);
+    }
+
     public float getWidth(String text, float size) {
         if (text == null || text.isEmpty()) return 0f;
         if (context == null) return Fonts.PS_MEDIUM.getWidth(text, size);
@@ -39,6 +48,26 @@ public class McText {
 
     public float getHeight(float size) {
         return size;
+    }
+
+    
+    public void drawText(PoseStack matrixStack, Component text, float x, float y, float size) {
+        if (text == null) return;
+        if (context == null) {
+            Fonts.PS_MEDIUM.drawText(matrixStack, text, x, y, size, 0f);
+            return;
+        }
+
+        Minecraft mc = Minecraft.getInstance();
+        float scale = size / BASE_HEIGHT;
+
+        Matrix3x2fStack pose = context.pose();
+        pose.pushMatrix();
+        pose.translate(x, y);
+        pose.scale(scale, scale);
+        // By default, draw the component without a forced color override, preserving its internal colors
+        context.text(mc.font, text, 0, 0, 0xFFFFFFFF);
+        pose.popMatrix();
     }
 
     public void drawText(PoseStack matrixStack, String text, float x, float y, float size, Color color) {

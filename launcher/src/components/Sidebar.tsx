@@ -3,6 +3,12 @@ import { NavLink } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
 const Sidebar = () => {
+
+  const handleExit = () => {
+    const electron = (window as any).require ? (window as any).require('electron') : null;
+    if (electron) electron.ipcRenderer.send('close-window');
+  };
+
   return (
     <div className="w-16 flex flex-col items-center py-4 gap-4 bg-background">
       <div className="flex flex-col gap-2 w-full px-2">
@@ -38,7 +44,7 @@ const Sidebar = () => {
       </div>
       
       <div className="mt-auto w-full px-2">
-        <button className="flex items-center justify-center w-full aspect-square rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all duration-200">
+        <button onClick={handleExit} className="flex items-center justify-center w-full aspect-square rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all duration-200">
           <LogOut size={22} strokeWidth={2.5} />
         </button>
       </div>

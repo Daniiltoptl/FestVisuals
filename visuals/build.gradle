@@ -1,3 +1,10 @@
+import proguard.gradle.ProGuardTask
+
+buildscript {
+	repositories { mavenCentral() }
+	dependencies { classpath "com.guardsquare:proguard-gradle:7.10.0" }
+}
+
 plugins {
 	id 'net.fabricmc.fabric-loom' version "${loom_version}"
 	id 'maven-publish'
@@ -149,6 +156,39 @@ publishing {
 		}
 	}
 }
+
+// Obfuscate the remapped jar in place: rename and repackage our classes, strip debug info. Runs as
+// part of `build`, so CI ships the obfuscated jar. Mixins, entry points and annotations are kept
+// (see proguard-rules.pro); bundled third-party code is left untouched. The jar path is derived
+// from the naming convention; this Loom produces the shipped jar as the `jar` task output.
+def releaseJar = layout.buildDirectory.file("libs/${project.archives_base_name}-${project.version}.jar").get().asFile
+def obfJar = new File(releaseJar.parentFile, releaseJar.name.replaceFirst(/\.jar$/, '-obf.jar'))
+
+tasks.register('obfuscateJar', ProGuardTask) {
+	dependsOn 'jar'
+
+	injars releaseJar
+	outjars obfJar
+
+	// Compile classpath carries the intermediary Minecraft jar plus Fabric and dependencies.
+	libraryjars sourceSets.main.compileClasspath
+	// The JDK, as modules (only what the mod touches; -dontwarn covers anything missed).
+	["java.base", "java.desktop", "java.logging", "java.management", "java.naming",
+	 "java.net.http", "jdk.unsupported"].each { mod ->
+		libraryjars "${System.getProperty('java.home')}/jmods/${mod}.jmod", jarfilter: '!**.jar', filter: '!module-info.class'
+	}
+
+	configuration file('proguard-rules.pro')
+
+	doLast {
+		if (!obfJar.exists()) throw new GradleException("ProGuard produced no jar")
+		releaseJar.delete()
+		obfJar.renameTo(releaseJar)
+		logger.lifecycle("Obfuscated ${releaseJar.name}")
+	}
+}
+
+tasks.named('build') { dependsOn 'obfuscateJar' }
 
 
 

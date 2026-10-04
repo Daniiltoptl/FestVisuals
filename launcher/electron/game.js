@@ -11,6 +11,7 @@ import path from 'path';
 import https from 'https';
 import crypto from 'crypto';
 import { createRequire } from 'module';
+import { extractZip } from './unzip.js';
 
 const require = createRequire(import.meta.url);
 const { Client } = require('minecraft-launcher-core');
@@ -51,6 +52,123 @@ Handler.prototype.checkJava = function (java) {
     });
   });
 };
+
+
+const originalGetNatives = Handler.prototype.getNatives;
+Handler.prototype.getNatives = async function () {
+  const nativeDirectory = path.resolve(this.options.overrides.natives || path.join(this.options.root, 'natives', this.version.id));
+  if (parseInt(this.version.id.split('.')[1]) >= 19) return this.options.overrides.cwd || this.options.root;
+  if (!fs.existsSync(nativeDirectory) || !fs.readdirSync(nativeDirectory).length) {
+    fs.mkdirSync(nativeDirectory, { recursive: true });
+    const stat = [];
+    for (const lib of this.version.libraries) {
+      if (!lib.downloads || !lib.downloads.classifiers || this.parseRule(lib)) continue;
+      const native = this.getOS() === 'osx' ? lib.downloads.classifiers['natives-osx'] || lib.downloads.classifiers['natives-macos'] : lib.downloads.classifiers[`natives-${this.getOS()}`];
+      if (native) stat.push(native);
+    }
+    this.client.emit('progress', { type: 'natives', task: 0, total: stat.length });
+    let counter = 0;
+    await inParallel(stat, PARALLEL, async (native) => {
+      const name = native.path.split('/').pop();
+      const target = path.join(nativeDirectory, name);
+      await this.downloadAsync(native.url, nativeDirectory, name, true, 'natives');
+      if (!await this.checkSum(native.sha1, target)) {
+        await this.downloadAsync(native.url, nativeDirectory, name, true, 'natives');
+      }
+      try {
+        extractZip(target, nativeDirectory);
+      } catch (e) {
+        console.warn('Zip extract error:', e);
+      }
+      fs.unlinkSync(target);
+      this.client.emit('progress', { type: 'natives', task: ++counter, total: stat.length });
+    });
+    this.client.emit('debug', '[MCLC]: Downloaded and extracted natives using Bare-Metal ZIP and Worker Pool');
+  }
+  return nativeDirectory;
+};
+
+const originalGetAssets = Handler.prototype.getAssets;
+Handler.prototype.getAssets = async function () {
+  const assetDirectory = path.resolve(this.options.overrides.assetRoot || path.join(this.options.root, 'assets'));
+  const assetId = this.options.version.custom || this.options.version.number;
+  const indexFile = path.join(assetDirectory, 'indexes', `${assetId}.json`);
+  if (!fs.existsSync(indexFile)) {
+    await this.downloadAsync(this.version.assetIndex.url, path.join(assetDirectory, 'indexes'), `${assetId}.json`, true, 'asset-json');
+  }
+  const index = JSON.parse(fs.readFileSync(indexFile, { encoding: 'utf8' }));
+  const objects = Object.keys(index.objects);
+  this.client.emit('progress', { type: 'assets', task: 0, total: objects.length });
+  let counter = 0;
+  await inParallel(objects, PARALLEL, async (asset) => {
+    const hash = index.objects[asset].hash;
+    const subhash = hash.substring(0, 2);
+    const subAsset = path.join(assetDirectory, 'objects', subhash);
+    const target = path.join(subAsset, hash);
+    if (!fs.existsSync(target) || !await this.checkSum(hash, target)) {
+      await this.downloadAsync(`${this.options.overrides.url.resource}/${subhash}/${hash}`, subAsset, hash, true, 'assets');
+    }
+    this.client.emit('progress', { type: 'assets', task: ++counter, total: objects.length });
+  });
+  
+  if (this.isLegacy()) {
+    const legacyDirectory = path.join(this.options.root, 'resources');
+    this.client.emit('debug', `[MCLC]: Copying assets over to ${legacyDirectory}`);
+    this.client.emit('progress', { type: 'assets-copy', task: 0, total: objects.length });
+    let copyCounter = 0;
+    await inParallel(objects, PARALLEL, async (asset) => {
+      const hash = index.objects[asset].hash;
+      const subhash = hash.substring(0, 2);
+      const subAsset = path.join(assetDirectory, 'objects', subhash);
+      const legacyAsset = asset.split('/');
+      legacyAsset.pop();
+      if (!fs.existsSync(path.join(legacyDirectory, legacyAsset.join('/')))) {
+        fs.mkdirSync(path.join(legacyDirectory, legacyAsset.join('/')), { recursive: true });
+      }
+      fs.copyFileSync(path.join(subAsset, hash), path.join(legacyDirectory, asset));
+      this.client.emit('progress', { type: 'assets-copy', task: ++copyCounter, total: objects.length });
+    });
+  }
+  return assetDirectory;
+};
+
+const originalGetClasses = Handler.prototype.getClasses;
+Handler.prototype.getClasses = async function (classJson) {
+  let libs = [];
+  const libraryDirectory = path.resolve(this.options.overrides.libraryRoot || path.join(this.options.root, 'libraries'));
+  if (classJson) {
+    if (classJson.mavenFiles) await this.downloadToDirectory(libraryDirectory, classJson.mavenFiles, 'classes-maven-custom');
+    libs = await this.downloadToDirectory(libraryDirectory, classJson.libraries, 'classes-custom');
+  }
+  const parsed = this.version.libraries.filter(lib => {
+    if (lib.downloads && lib.downloads.artifact && !this.parseRule(lib)) return true;
+    return false;
+  });
+  this.client.emit('progress', { type: 'classes', task: 0, total: parsed.length });
+  let counter = 0;
+  await inParallel(parsed, PARALLEL, async (library) => {
+    const lib = library.name.split(':');
+    const jarPath = path.join(libraryDirectory, `${lib[0].replace(/\./g, '/')}/${lib[1]}/${lib[2]}`);
+    const name = `${lib[1]}-${lib[2]}${lib[3] ? '-' + lib[3] : ''}.jar`;
+    const target = path.join(jarPath, name);
+    const downloadLibrary = async (libObj) => {
+      if (libObj.url) {
+        const url = `${libObj.url}${lib[0].replace(/\./g, '/')}/${lib[1]}/${lib[2]}/${name}`;
+        await this.downloadAsync(url, jarPath, name, true, 'classes');
+      } else if (libObj.downloads && libObj.downloads.artifact && libObj.downloads.artifact.url) {
+        await this.downloadAsync(libObj.downloads.artifact.url, jarPath, name, true, 'classes');
+      }
+    };
+    if (!fs.existsSync(target)) await downloadLibrary(library);
+    if (library.downloads && library.downloads.artifact) {
+      if (!await this.checkSum(library.downloads.artifact.sha1, target)) await downloadLibrary(library);
+    }
+    this.client.emit('progress', { type: 'classes', task: ++counter, total: parsed.length });
+    libs.push(`${jarPath}${path.sep}${name}`);
+  });
+  return libs;
+};
+
 
 /**
  * A jar is only sound if it ends with the ZIP end-of-central-directory record. An interrupted or
