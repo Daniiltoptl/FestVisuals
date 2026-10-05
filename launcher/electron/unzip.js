@@ -14,6 +14,33 @@ function findEocd(buf) {
 	return null
 }
 
+/** Contents of one entry (e.g. "fabric.mod.json"), or null when the archive has no such entry. */
+export function readZipEntry(zipPath, entryName) {
+	const buf = fs.readFileSync(zipPath)
+	const eocd = findEocd(buf)
+	if (!eocd) return null
+
+	let ptr = eocd.cdOffset
+	for (let i = 0; i < eocd.entryCount; i++) {
+		if (buf.readUInt32LE(ptr) !== 0x02014b50) return null
+		const method = buf.readUInt16LE(ptr + 10)
+		const compressedSize = buf.readUInt32LE(ptr + 20)
+		const nameLen = buf.readUInt16LE(ptr + 28)
+		const extraLen = buf.readUInt16LE(ptr + 30)
+		const commentLen = buf.readUInt16LE(ptr + 32)
+		const localOffset = buf.readUInt32LE(ptr + 42)
+		const name = buf.toString('utf8', ptr + 46, ptr + 46 + nameLen)
+		ptr += 46 + nameLen + extraLen + commentLen
+		if (name !== entryName) continue
+
+		if (buf.readUInt32LE(localOffset) !== 0x04034b50) return null
+		const dataStart = localOffset + 30 + buf.readUInt16LE(localOffset + 26) + buf.readUInt16LE(localOffset + 28)
+		const raw = buf.subarray(dataStart, dataStart + compressedSize)
+		return method === 0 ? Buffer.from(raw) : zlib.inflateRawSync(raw)
+	}
+	return null
+}
+
 export function extractZip(zipPath, destDir) {
 	const buf = fs.readFileSync(zipPath)
 	const eocd = findEocd(buf)

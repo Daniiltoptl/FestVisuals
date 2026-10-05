@@ -80,7 +80,7 @@ const Settings = () => {
               <h2 className="text-lg font-bold uppercase tracking-wider">Директория игры</h2>
             </div>
             <p className="text-sm text-muted-foreground mb-6">
-              Папка, в которую будут скачиваться все ресурсы и сам клиент FestVisuals.
+              Сюда скачиваются ресурсы игры. У каждой версии своя подпапка в instances — с модами, настройками и мирами.
             </p>
             <div className="flex flex-col gap-4">
               <div className="flex items-center gap-2">
@@ -114,14 +114,14 @@ const Settings = () => {
                     const fs = (window as any).require('fs');
                     const path = (window as any).require('path');
                     try {
-                      const modsDir = path.join(gameDir, 'mods');
-                      if (!fs.existsSync(modsDir)) fs.mkdirSync(modsDir, { recursive: true });
-                      if (electron) electron.shell.openPath(modsDir);
-                    } catch(e) { console.error("Error opening mods:", e); }
+                      const instances = path.join(gameDir, 'instances');
+                      if (!fs.existsSync(instances)) fs.mkdirSync(instances, { recursive: true });
+                      if (electron) electron.shell.openPath(instances);
+                    } catch(e) { console.error("Error opening instances:", e); }
                   }}
                 >
                   <Folder size={16} />
-                  Папка модов
+                  Папки версий
                 </Button>
               </div>
             </div>

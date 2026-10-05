@@ -1,29 +1,27 @@
 // Everything needed to get from "Play" to a running game, with no Electron dependency so it can be
 // run and tested from plain Node.
 //
-// On a clean machine this installs Mojang's own Java runtime, the Fabric profile, Fabric API and the
-// bundled FestVisuals jar, then hands over to minecraft-launcher-core for the vanilla files. Later
-// launches only check that files exist, so the wait is the game's own start-up.
+// For each version this installs the Java runtime Mojang specifies for it, the Fabric profile and
+// the version's mods into its own instance folder, then hands over to minecraft-launcher-core for
+// the vanilla files. Later launches only check that files exist, so the wait is the game's own
+// start-up. Libraries, assets and runtimes are shared by all versions.
 
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import https from 'https';
-import crypto from 'crypto';
 import { createRequire } from 'module';
 import { extractZip } from './unzip.js';
+import { PARALLEL, get, getJson, download, inParallel } from './net.js';
+import { VERSIONS, profileId } from './versions.js';
+import { ensureMods } from './mods.js';
+import { latestFestVisuals } from './feed.js';
 
 const require = createRequire(import.meta.url);
 const { Client } = require('minecraft-launcher-core');
 const Handler = require('minecraft-launcher-core/components/handler.js');
 
-const MC_VERSION = '26.2';
-const LOADER_VERSION = '0.19.5';
-const PROFILE = `fabric-loader-${LOADER_VERSION}-${MC_VERSION}`;
-const FABRIC_API_URL = 'https://cdn.modrinth.com/data/P7dR8mSH/versions/ewUK83HI/fabric-api-0.161.0%2B26.2.jar';
+const VERSION_MANIFEST = 'https://piston-meta.mojang.com/mc/game/version_manifest_v2.json';
 const JAVA_RUNTIMES = 'https://launchermeta.mojang.com/v1/products/java-runtime/2ec0cc96c44e5a76b9c8b7c39df7210883d12871/all.json';
-const JAVA_COMPONENT = 'java-runtime-epsilon'; // what Mojang ships for 26.2 (Java 25)
-const PARALLEL = 32;
 const FULL_CHECK_EVERY_MS = 7 * 24 * 60 * 60 * 1000;
 
 // minecraft-launcher-core SHA-1 hashes every asset and library (thousands of files) on every
@@ -240,75 +238,22 @@ function usableRoot(requested) {
   throw new Error('Не удалось создать папку игры');
 }
 
-function get(url, redirects = 5) {
-  return new Promise((resolve, reject) => {
-    const request = https.get(url, { headers: { 'User-Agent': 'FestVisuals-Launcher' }, timeout: 30000 }, (response) => {
-      if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location && redirects > 0) {
-        response.resume();
-        resolve(get(new URL(response.headers.location, url).toString(), redirects - 1));
-        return;
-      }
-      if (response.statusCode !== 200) {
-        response.resume();
-        reject(new Error(`HTTP ${response.statusCode} для ${url}`));
-        return;
-      }
-      const chunks = [];
-      response.on('data', (chunk) => chunks.push(chunk));
-      response.on('end', () => resolve(Buffer.concat(chunks)));
-      response.on('error', reject);
-    });
-    request.on('timeout', () => request.destroy(new Error(`Таймаут: ${url}`)));
-    request.on('error', reject);
-  });
-}
 
-async function getJson(url) {
-  return JSON.parse((await get(url)).toString('utf8'));
-}
-
-/** Downloads to a temporary name and renames, so an interrupted download never looks complete. */
-async function download(url, dest, sha1) {
-  let lastError;
-  for (let attempt = 0; attempt < 3; attempt++) {
-    try {
-      const data = await get(url);
-      if (sha1 && crypto.createHash('sha1').update(data).digest('hex') !== sha1) {
-        throw new Error(`Повреждённый файл ${path.basename(dest)}`);
-      }
-      fs.mkdirSync(path.dirname(dest), { recursive: true });
-      const tmp = `${dest}.part`;
-      fs.writeFileSync(tmp, data);
-      fs.renameSync(tmp, dest);
-      return;
-    } catch (e) {
-      lastError = e;
-    }
-  }
-  throw lastError;
-}
-
-async function inParallel(items, limit, worker) {
-  let next = 0;
-  const runners = Array.from({ length: Math.min(limit, items.length) }, async () => {
-    while (next < items.length) await worker(items[next++]);
-  });
-  await Promise.all(runners);
-}
-
-/** Mojang's own Java 25 build, unpacked once into <root>/runtime. Returns the javaw path. */
-async function ensureJava(root, progress) {
+/** Mojang's own Java build for the version (8, 21 or 25), unpacked once into <root>/runtime. */
+async function ensureJava(root, component, progress) {
   if (process.platform !== 'win32') return 'java';
 
-  const home = path.join(root, 'runtime', JAVA_COMPONENT);
+  const home = path.join(root, 'runtime', component);
   const javaw = path.join(home, 'bin', 'javaw.exe');
   const done = path.join(home, '.complete');
   if (fs.existsSync(done) && fs.existsSync(javaw)) return javaw;
 
   const platform = os.arch() === 'arm64' ? 'windows-arm64' : 'windows-x64';
   const all = await getJson(JAVA_RUNTIMES);
-  const entry = all[platform] && all[platform][JAVA_COMPONENT] && all[platform][JAVA_COMPONENT][0];
-  if (!entry) throw new Error(`Нет Java для ${platform}`);
+  // Old runtimes (Java 8) have no arm64 build; Windows on ARM runs the x64 one.
+  const entry = (all[platform] && all[platform][component] && all[platform][component][0])
+    || (all['windows-x64'][component] && all['windows-x64'][component][0]);
+  if (!entry) throw new Error(`Нет Java (${component}) для ${platform}`);
   const manifest = await getJson(entry.manifest.url);
 
   const files = Object.entries(manifest.files).filter(([, f]) => f.type === 'file');
@@ -326,36 +271,74 @@ async function ensureJava(root, progress) {
   return javaw;
 }
 
+/**
+ * The vanilla version JSON, saved where minecraft-launcher-core looks for it
+ * (versions/<profile>/<version>.json) so it is read from disk instead of the network.
+ */
+async function ensureVersionJson(root, version) {
+  const file = path.join(root, 'versions', profileId(version), `${version}.json`);
+  try {
+    return JSON.parse(fs.readFileSync(file, 'utf8'));
+  } catch {
+    // not there yet, or damaged
+  }
+  const manifest = await getJson(VERSION_MANIFEST);
+  const entry = manifest.versions.find((v) => v.id === version);
+  if (!entry) throw new Error(`Mojang не знает версию ${version}`);
+  await download(entry.url, file, entry.sha1);
+  return JSON.parse(fs.readFileSync(file, 'utf8'));
+}
+
 /** The Fabric version profile minecraft-launcher-core reads as a "custom" version. */
-async function ensureFabricProfile(root) {
-  const file = path.join(root, 'versions', PROFILE, `${PROFILE}.json`);
+async function ensureFabricProfile(root, version) {
+  const id = profileId(version);
+  const file = path.join(root, 'versions', id, `${id}.json`);
   if (fs.existsSync(file)) return;
-  const profile = await get(`https://meta.fabricmc.net/v2/versions/loader/${MC_VERSION}/${LOADER_VERSION}/profile/json`);
+  const profile = await get(`https://meta.fabricmc.net/v2/versions/loader/${version}/${VERSIONS[version].loader}/profile/json`);
   JSON.parse(profile.toString('utf8')); // refuse to save an error page
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, profile);
 }
 
-/** Fabric API plus the FestVisuals jar shipped inside the launcher, replacing older copies. */
-async function ensureMods(root, modJar, progress) {
+// What stays in the root after the switch to per-version folders: files shared by all versions.
+const SHARED = new Set(['assets', 'libraries', 'versions', 'runtime', 'natives', 'cache', 'instances',
+  '.festvisuals-verified', 'launcher_profiles.json']);
+
+/**
+ * Before multiple versions the game folder was the root itself. Move that 26.2 install (mods,
+ * FestVisuals configs, worlds, options, ...) into instances/26.2 once, so nothing is lost.
+ */
+function migrateLegacyLayout(root) {
+  const target = path.join(root, 'instances', '26.2');
+  if (fs.existsSync(target)) return;
   const mods = path.join(root, 'mods');
-  fs.mkdirSync(mods, { recursive: true });
+  const looksLikeOurs = fs.existsSync(path.join(root, 'FestVisuals'))
+    || (fs.existsSync(mods) && fs.readdirSync(mods).some((name) => /^festvisuals.*\.jar$/i.test(name)));
+  if (!looksLikeOurs) return;
 
-  const fabricApi = path.join(mods, 'fabric-api.jar');
-  if (!fs.existsSync(fabricApi)) {
-    progress('fabric', 0);
-    await download(FABRIC_API_URL, fabricApi);
-  }
-
-  if (!modJar || !fs.existsSync(modJar)) return;
-  const target = path.join(mods, path.basename(modJar));
-  for (const name of fs.readdirSync(mods)) {
-    if (/^festvisuals.*\.jar$/i.test(name) && name !== path.basename(modJar)) {
-      fs.rmSync(path.join(mods, name), { force: true });
+  fs.mkdirSync(target, { recursive: true });
+  for (const name of fs.readdirSync(root)) {
+    if (SHARED.has(name)) continue;
+    try {
+      fs.renameSync(path.join(root, name), path.join(target, name));
+    } catch {
+      // in use or not movable; it simply stays where it was
     }
   }
-  if (!fs.existsSync(target) || fs.statSync(target).size !== fs.statSync(modJar).size) {
-    fs.copyFileSync(modJar, target);
+}
+
+/**
+ * Directory for the JDK's loopback sockets. The default is %TEMP%, which breaks when that path is
+ * long or not ASCII (e.g. a Cyrillic user name) — and with it the game's networking.
+ */
+function socketTmpDir() {
+  const dir = path.join(process.env.ProgramData || 'C:\\ProgramData', 'FestVisuals', 'tmp');
+  if (!/^[\x20-\x7e]+$/.test(dir)) return null;
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+    return dir;
+  } catch {
+    return null;
   }
 }
 
@@ -365,12 +348,20 @@ function sharedAssets() {
   return fs.existsSync(path.join(vanilla, 'objects')) ? vanilla : undefined;
 }
 
+/** Folder of one version's game data (mods, configs, worlds) under the launcher root. */
+export function instanceDir(root, version) {
+  return path.join(root, 'instances', version);
+}
+
 /**
- * Prepares everything and starts the game.
+ * Prepares everything for one version and starts it.
  * emit(channel, payload) reports: launch-progress {type, percent}, launch-success, game-ready,
  * game-closed (code), launch-error (message).
  */
-export async function launchGame({ root: requestedRoot, ram, username, modJar }, emit) {
+export async function launchGame({ version, root: requestedRoot, ram, username, bundledJar, window }, emit) {
+  const cfg = VERSIONS[version];
+  if (!cfg) throw new Error(`Неизвестная версия ${version}`);
+
   // One message per visible change: thousands of per-file updates only clog the IPC channel.
   const shown = {};
   const progress = (type, percent) => {
@@ -378,12 +369,20 @@ export async function launchGame({ root: requestedRoot, ram, username, modJar },
     shown[type] = percent;
     emit('launch-progress', { type, percent });
   };
+
   const root = usableRoot(requestedRoot);
+  migrateLegacyLayout(root);
+  const gameDir = instanceDir(root, version);
+  fs.mkdirSync(gameDir, { recursive: true });
+
+  const versionJson = await ensureVersionJson(root, version);
+  const javaComponent = (versionJson.javaVersion && versionJson.javaVersion.component) || 'jre-legacy';
+  const festvisualsJar = cfg.festvisuals ? await latestFestVisuals(root, bundledJar, progress) : null;
 
   const [javaPath] = await Promise.all([
-    ensureJava(root, progress),
-    ensureFabricProfile(root),
-    ensureMods(root, modJar, progress),
+    ensureJava(root, javaComponent, progress),
+    ensureFabricProfile(root, version),
+    ensureMods(gameDir, version, { festvisualsJar, progress }),
   ]);
 
   // Drop any half-downloaded jar from a previous run so the verify/download below replaces it.
@@ -419,6 +418,12 @@ export async function launchGame({ root: requestedRoot, ram, username, modJar },
     emit('game-closed', code);
   });
 
+  // Minecraft's start-up crash-report preview asks OSHI for process counters; where Windows'
+  // counter registry is damaged that falls back to WMI and stalls the window for up to minutes.
+  const customArgs = ['-Doshi.os.windows.perfproc.disabled=true', '-Doshi.util.wmi.timeout=2000'];
+  const sockets = socketTmpDir();
+  if (sockets) customArgs.push(`-Djdk.net.unixdomain.tmpdir=${sockets}`);
+
   fastVerify = verifiedRecently(root);
   const process_ = await launcher.launch({
     authorization: {
@@ -431,15 +436,15 @@ export async function launchGame({ root: requestedRoot, ram, username, modJar },
     },
     root,
     javaPath,
-    version: { number: MC_VERSION, type: 'release', custom: PROFILE },
+    version: { number: version, type: 'release', custom: profileId(version) },
     memory: { max: `${ram}M`, min: `${Math.max(512, Math.floor(ram / 2))}M` },
-    // Minecraft's start-up crash-report preview asks OSHI for process counters; where Windows'
-    // counter registry is damaged that falls back to WMI and stalls the window for up to minutes.
-    // The mod sets the same properties, this covers the launch before it loads.
-    customArgs: ['-Doshi.os.windows.perfproc.disabled=true', '-Doshi.util.wmi.timeout=2000'],
+    customArgs,
+    window,
     overrides: {
       maxSockets: PARALLEL,
       assetRoot: sharedAssets(),
+      gameDirectory: gameDir,
+      cwd: gameDir, // FestVisuals keeps its configs relative to the working directory
     },
   });
   if (!process_) {

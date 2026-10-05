@@ -1,14 +1,28 @@
-// Puts the mod into mod/festvisuals.jar, which electron-builder ships as a resource and the
-// launcher installs into the game's mods folder.
+// Puts the current mod into mod/festvisuals.jar, which electron-builder ships as a resource: the
+// launcher's offline fallback when it cannot reach the mod feed on first start.
 //
-// The latest GitHub release is preferred (the repository is private, so a token comes from
-// GITHUB_TOKEN or the origin remote URL); without one, the newest local build is used.
+// Source order: the public releases repo (what CI publishes; no token needed), then the private
+// repo's latest release (token from GITHUB_TOKEN or the origin remote), then the newest local build.
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import { execSync } from 'child_process';
 
-const REPO = 'Daniiltoptl/FestVisuals';
+const FEED = 'https://github.com/Daniiltoptl/FestVisuals-Releases/releases/download/mod/';
 const OUT = path.join('mod', 'festvisuals.jar');
+
+function save(buffer) {
+  fs.mkdirSync('mod', { recursive: true });
+  fs.writeFileSync(OUT, buffer);
+}
+
+async function fromFeed() {
+  const meta = await (await fetch(FEED + 'mod.json')).json();
+  const jar = Buffer.from(await (await fetch(FEED + meta.file)).arrayBuffer());
+  if (crypto.createHash('sha1').update(jar).digest('hex') !== meta.sha1) throw new Error('checksum mismatch');
+  save(jar);
+  return `${meta.file} ${meta.version} from the public feed`;
+}
 
 function token() {
   if (process.env.GITHUB_TOKEN) return process.env.GITHUB_TOKEN;
@@ -21,21 +35,18 @@ function token() {
   }
 }
 
-async function fromRelease() {
+async function fromPrivateRelease() {
   const auth = token();
   if (!auth) return null;
   const headers = { Authorization: `Bearer ${auth}`, 'User-Agent': 'festvisuals-launcher-build' };
-  const release = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, {
+  const info = await (await fetch('https://api.github.com/repos/Daniiltoptl/FestVisuals/releases/latest', {
     headers: { ...headers, Accept: 'application/vnd.github+json' },
-  });
-  if (!release.ok) throw new Error(`release lookup failed: HTTP ${release.status}`);
-  const info = await release.json();
+  })).json();
   const asset = info.assets.find((a) => a.name.endsWith('.jar') && !a.name.includes('-sources'));
-  if (!asset) throw new Error(`release ${info.tag_name} has no jar`);
+  if (!asset) return null;
   const file = await fetch(asset.url, { headers: { ...headers, Accept: 'application/octet-stream' } });
-  if (!file.ok) throw new Error(`jar download failed: HTTP ${file.status}`);
-  fs.mkdirSync('mod', { recursive: true });
-  fs.writeFileSync(OUT, Buffer.from(await file.arrayBuffer()));
+  if (!file.ok) return null;
+  save(Buffer.from(await file.arrayBuffer()));
   return `${asset.name} from release ${info.tag_name}`;
 }
 
@@ -48,20 +59,22 @@ function fromLocalBuild() {
         .sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs)
     : [];
   if (jars.length === 0) return null;
-  fs.mkdirSync('mod', { recursive: true });
-  fs.copyFileSync(jars[0], OUT);
+  save(fs.readFileSync(jars[0]));
   return `${path.basename(jars[0])} from the local build`;
 }
 
 let source = null;
-try {
-  source = await fromRelease();
-} catch (e) {
-  console.warn(`GitHub release unavailable (${e.message}), using the local build.`);
+for (const attempt of [fromFeed, fromPrivateRelease]) {
+  try {
+    source = await attempt();
+    if (source) break;
+  } catch (e) {
+    console.warn(`${attempt.name} failed: ${e.message}`);
+  }
 }
 source = source || fromLocalBuild();
 if (!source) {
-  console.error('No mod jar: no GitHub release reachable and nothing in visuals/build/libs.');
+  console.error('No mod jar available from the feed, the releases or a local build.');
   process.exit(1);
 }
 console.log(`Bundled ${source}`);

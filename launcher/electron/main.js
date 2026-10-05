@@ -2,134 +2,154 @@ import { app, BrowserWindow, ipcMain } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import http from 'http';
-import { spawn } from 'child_process';
+import updater from 'electron-updater';
 import { launchGame } from './game.js';
+import { startJarvis, stopJarvis } from './jarvis.js';
 
+const { autoUpdater } = updater;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-let jarvisProcess = null;
+let win = null;
 
-// Start a local HTTP server so Minecraft can trigger Jarvis
-const server = http.createServer((req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  
+/** One game at a time; the renderer draws its buttons from this. */
+let game = { state: 'idle', version: null };
+
+function send(channel, payload) {
+  if (win && !win.isDestroyed()) win.webContents.send(channel, payload);
+}
+
+function setGame(next) {
+  game = { ...game, ...next };
+  send('game-state', game);
+}
+
+// Loopback-only control endpoint for the mod: it asks for the local Jarvis server here. No CORS
+// header, so web pages cannot read the answers.
+const server = http.createServer(async (req, res) => {
   if (req.url === '/start-jarvis') {
-    if (!jarvisProcess) {
-      console.log('Starting Jarvis from Minecraft command...');
-      const jarvisDir = path.join(process.cwd(), '../jarvis-server');
-      // pythonw has no console; windowsHide stops a terminal window from flashing up on screen,
-      // which players mistook for malware. stdio ignored so the detached child needs no pipes.
-      const python = process.platform === 'win32' ? 'pythonw' : 'python3';
-      jarvisProcess = spawn(python, ['server.py'], { cwd: jarvisDir, windowsHide: true, stdio: 'ignore' });
-
-      jarvisProcess.on('error', () => { jarvisProcess = null; });
-      jarvisProcess.on('close', () => {
-        jarvisProcess = null;
-      });
-    }
-    res.writeHead(200);
-    res.end('Jarvis started');
+    const result = await startJarvis(app, __dirname);
+    res.writeHead(result.ok ? 200 : 500, { 'Content-Type': 'text/plain; charset=utf-8' });
+    res.end(result.message);
   } else if (req.url === '/stop-jarvis') {
-    if (jarvisProcess) {
-      console.log('Stopping Jarvis...');
-      jarvisProcess.kill();
-      jarvisProcess = null;
-    }
-    res.writeHead(200);
-    res.end('Jarvis stopped');
+    stopJarvis();
+    res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+    res.end('stopped');
   } else {
     res.writeHead(404);
-    res.end('Not found');
+    res.end();
   }
 });
+server.on('error', (e) => console.error('Jarvis control port unavailable:', e.message));
+server.listen(4567, '127.0.0.1');
 
-// Port 27515 or something. Let's use 27515 (default FestVisuals port maybe?) or 3000. 
-// Actually I will just use 27515. Wait, 4567? I'll use 4567. 
-// Loopback only: anything on the network (or any web page, given the CORS header) could
-// otherwise start processes on this machine.
-server.listen(4567, '127.0.0.1', () => {
-  console.log('Jarvis IPC Server listening on port 4567');
-});
+/**
+ * Checks the public releases repo on start; a newer launcher is downloaded in the background and
+ * installed right away (silent NSIS install, then relaunch) unless a game is running — then it is
+ * applied when the launcher quits.
+ */
+function setupUpdater() {
+  if (!app.isPackaged) return;
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+
+  autoUpdater.on('update-available', (info) => send('updater', { state: 'downloading', version: info.version, percent: 0 }));
+  autoUpdater.on('download-progress', (p) => send('updater', { state: 'downloading', percent: Math.round(p.percent) }));
+  autoUpdater.on('update-downloaded', (info) => {
+    send('updater', { state: 'ready', version: info.version });
+    if (game.state === 'idle') setTimeout(() => autoUpdater.quitAndInstall(true, true), 2500);
+  });
+  autoUpdater.on('error', (e) => {
+    console.error('Update check failed:', e.message);
+    send('updater', { state: 'idle' });
+  });
+  autoUpdater.checkForUpdates().catch(() => {});
+}
 
 function createWindow() {
-  const win = new BrowserWindow({
+  win = new BrowserWindow({
     width: 1200,
     height: 800,
     title: 'FestVisuals Launcher',
     icon: path.join(__dirname, 'icon.png'),
     autoHideMenuBar: true,
     frame: false,
+    backgroundColor: '#0b0b0f',
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,
+      spellcheck: false,
     },
   });
 
-  // In development, load the Vite dev server
   if (!app.isPackaged) {
     win.loadURL('http://localhost:8080');
   } else {
-    // In production, load the built index.html
     win.loadFile(path.join(__dirname, '../dist/index.html'));
   }
 
-  ipcMain.on('minimize-window', () => {
-    if (win) win.minimize();
-  });
-  
-  ipcMain.on('close-window', () => {
-    if (win) win.close();
-  });
-
-  let isLaunching = false;
+  ipcMain.on('minimize-window', () => win && win.minimize());
+  ipcMain.on('close-window', () => win && win.close());
+  ipcMain.on('get-game-state', (event) => event.sender.send('game-state', game));
 
   ipcMain.on('launch-game', async (event, config) => {
-    if (isLaunching) {
-      console.log("Already launching, ignoring request.");
+    if (game.state !== 'idle') {
+      send('launch-error', { version: config.version, message: `Уже запущена ${game.version}` });
       return;
     }
-    
-    isLaunching = true;
-    const { root, ram, username } = config;
-    console.log("Launching game in", root, "with username", username);
+    const { version, closeOnLaunch } = config;
+    setGame({ state: 'launching', version });
 
-    // The mod jar ships inside the launcher (see scripts/bundle-mod.mjs).
-    const modJar = app.isPackaged
+    // The FestVisuals jar shipped with the launcher: the offline fallback for the mod feed.
+    const bundledJar = app.isPackaged
       ? path.join(process.resourcesPath, 'mod', 'festvisuals.jar')
       : path.join(__dirname, '..', 'mod', 'festvisuals.jar');
+
+    let hidden = false;
     const emit = (channel, payload) => {
-      if (!event.sender.isDestroyed()) event.sender.send(channel, payload);
+      switch (channel) {
+        case 'launch-progress':
+          setGame({ state: 'downloading', type: payload.type, percent: payload.percent });
+          break;
+        case 'launch-success':
+          if (game.state !== 'running') setGame({ state: 'starting' });
+          break;
+        case 'game-ready':
+          setGame({ state: 'running' });
+          if (closeOnLaunch && win) { win.hide(); hidden = true; }
+          break;
+        case 'game-closed':
+          setGame({ state: 'idle', version: null });
+          if (hidden && win) { win.show(); hidden = false; }
+          break;
+        case 'launch-error':
+          send('launch-error', { version, message: payload });
+          break;
+        default:
+          break;
+      }
     };
 
     try {
-      await launchGame({ root, ram, username, modJar }, emit);
+      await launchGame({ ...config, bundledJar }, emit);
     } catch (err) {
       console.error(err);
-      emit('launch-error', err.message);
-    } finally {
-      isLaunching = false;
+      send('launch-error', { version, message: err.message });
+      setGame({ state: 'idle', version: null });
     }
-  });
-
-  ipcMain.on('check-launch-status', (event) => {
-    event.sender.send('launch-status-reply', isLaunching);
   });
 }
 
 app.whenReady().then(() => {
   createWindow();
+  setupUpdater();
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
-    }
+    if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
 });
 
 app.on('window-all-closed', () => {
-  if (jarvisProcess) jarvisProcess.kill();
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
+  stopJarvis();
+  if (process.platform !== 'darwin') app.quit();
 });

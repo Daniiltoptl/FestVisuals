@@ -1,155 +1,160 @@
 import { useState, useEffect } from "react";
-import { Play, ArrowRight, Download, Loader2, Check } from "lucide-react";
-import { gameDir } from "@/lib/gameDir";
+import { useNavigate, useParams } from "react-router-dom";
+import { Play, ArrowLeft, Download, Loader2, Check, FolderOpen } from "lucide-react";
+import { gameDir, instanceDir, totalRamMb } from "@/lib/gameDir";
+import { findVersion } from "@/lib/versions";
+
+type GameState = {
+  state: "idle" | "launching" | "downloading" | "starting" | "running";
+  version: string | null;
+  type?: string;
+  percent?: number;
+};
+
+const PROGRESS_LABELS: Record<string, string> = {
+  assets: "АССЕТОВ",
+  "assets-copy": "АССЕТОВ",
+  natives: "ДВИЖКА",
+  classes: "БИБЛИОТЕК",
+  libraries: "БИБЛИОТЕК",
+  "classes-custom": "FABRIC",
+  "classes-maven-custom": "FABRIC",
+  "version-jar": "ИГРЫ",
+  java: "JAVA",
+  mods: "МОДОВ",
+  festvisuals: "КЛИЕНТА",
+};
+
+const electron = (window as any).require ? (window as any).require("electron") : null;
 
 const Index = () => {
-  const [status, setStatus] = useState<'idle' | 'checking' | 'downloading' | 'starting' | 'playing'>('idle');
-  const [progress, setProgress] = useState(0);
-  const [downloadType, setDownloadType] = useState('');
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const version = findVersion(id);
+  const [game, setGame] = useState<GameState>({ state: "idle", version: null });
 
   useEffect(() => {
-    const electron = (window as any).require ? (window as any).require('electron') : null;
+    if (!version) navigate("/", { replace: true });
+  }, [version, navigate]);
+
+  useEffect(() => {
     if (!electron) return;
-
-    const handleProgress = (_: any, data: { type: string, percent: number }) => {
-      setStatus('downloading');
-      setProgress(data.percent || 0);
-      
-      const typeTranslations: Record<string, string> = {
-        'assets': 'АССЕТОВ',
-        'natives': 'ДВИЖКА',
-        'classes': 'ЯДРА',
-        'libraries': 'БИБЛИОТЕК',
-        'classes-custom': 'FABRIC',
-        'classes-maven-custom': 'FABRIC',
-        'version-jar': 'ИГРЫ',
-        'java': 'JAVA',
-        'fabric': 'FABRIC API'
-      };
-      setDownloadType(typeTranslations[data.type] || data.type);
+    const onState = (_: unknown, next: GameState) => setGame(next);
+    const onError = (_: unknown, error: { version: string; message: string }) => {
+      if (error.version === id) alert("Ошибка запуска: " + error.message);
     };
-
-    // The process is running but the window is not up yet.
-    const handleSuccess = () => {
-      setStatus((current) => (current === 'playing' ? current : 'starting'));
-    };
-
-    const handleReady = () => setStatus('playing');
-    const handleClosed = () => setStatus('idle');
-
-    const handleError = (_: any, err: string) => {
-      console.error("Launch error:", err);
-      setStatus('idle');
-      alert("Ошибка запуска: " + err);
-    };
-
-    electron.ipcRenderer.on('launch-progress', handleProgress);
-    electron.ipcRenderer.on('launch-success', handleSuccess);
-    electron.ipcRenderer.on('game-ready', handleReady);
-    electron.ipcRenderer.on('game-closed', handleClosed);
-    electron.ipcRenderer.on('launch-error', handleError);
-
-    // Ask main process if currently launching
-    electron.ipcRenderer.send('check-launch-status');
-    electron.ipcRenderer.on('launch-status-reply', (_: any, isLaunching: boolean) => {
-      if (isLaunching && status === 'idle') setStatus('checking');
-    });
-
+    electron.ipcRenderer.on("game-state", onState);
+    electron.ipcRenderer.on("launch-error", onError);
+    electron.ipcRenderer.send("get-game-state");
     return () => {
-      electron.ipcRenderer.removeListener('launch-progress', handleProgress);
-      electron.ipcRenderer.removeListener('launch-success', handleSuccess);
-      electron.ipcRenderer.removeListener('game-ready', handleReady);
-      electron.ipcRenderer.removeListener('game-closed', handleClosed);
-      electron.ipcRenderer.removeListener('launch-error', handleError);
-      electron.ipcRenderer.removeAllListeners('launch-status-reply');
+      electron.ipcRenderer.removeListener("game-state", onState);
+      electron.ipcRenderer.removeListener("launch-error", onError);
     };
-  }, []);
+  }, [id]);
 
-  const handlePlayClick = () => {
-    if (status !== 'idle') return;
-    
-    const electron = (window as any).require ? (window as any).require('electron') : null;
-    if (!electron) return;
+  if (!version) return null;
 
-    const ram = Number(localStorage.getItem('settings_ram')) || 4096;
-    const root = gameDir();
-    const username = localStorage.getItem('user_login') || 'FestPlayer';
+  const mine = game.version === version.id;
+  const otherRunning = game.state !== "idle" && !mine;
+  const status = mine ? game.state : "idle";
 
-    setStatus('checking');
-    electron.ipcRenderer.send('launch-game', { root, ram, username });
+  const launch = () => {
+    if (!electron || game.state !== "idle") return;
+    const ram = Math.min(Number(localStorage.getItem("settings_ram")) || 4096, totalRamMb());
+    const width = Math.min(Number(localStorage.getItem("settings_res_w")) || 1280, window.screen.availWidth);
+    const height = Math.min(Number(localStorage.getItem("settings_res_h")) || 720, window.screen.availHeight);
+    electron.ipcRenderer.send("launch-game", {
+      version: version.id,
+      root: gameDir(),
+      ram,
+      username: localStorage.getItem("user_login") || "FestPlayer",
+      closeOnLaunch: localStorage.getItem("settings_close_launch") === "true",
+      window: { width, height, fullscreen: localStorage.getItem("settings_fullscreen") === "true" },
+    });
   };
 
-  // Reset after some time if "in game" just for demo purposes (optional)
-  // Usually this would reset when the game process closes.
+  const openMods = () => {
+    const req = (window as any).require;
+    if (!req || !electron) return;
+    const mods = req("path").join(instanceDir(version.id), "mods");
+    req("fs").mkdirSync(mods, { recursive: true });
+    electron.shell.openPath(mods);
+  };
+
+  const label = (() => {
+    if (otherRunning) return `ЗАПУЩЕНА ${game.version}`;
+    switch (status) {
+      case "launching": return "ПРОВЕРКА...";
+      case "downloading": return `ЗАГРУЗКА ${PROGRESS_LABELS[game.type || ""] || ""} ${game.percent ?? 0}%`;
+      case "starting": return "ЗАПУСК...";
+      case "running": return "В ИГРЕ";
+      default: return "ЗАПУСТИТЬ";
+    }
+  })();
 
   return (
-    <div className="w-full h-full flex p-6 gap-8">
-      
-      {/* Left side: Hero Image */}
-      <div className="w-[350px] shrink-0 rounded-2xl overflow-hidden relative shadow-2xl">
-        <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent z-10 pointer-events-none"></div>
-        <img 
-          src="./hero_bg.jpg" 
-          alt="FestVisuals Hero" 
-          className="w-full h-full object-cover"
-        />
+    <div className="flex h-full w-full gap-8 p-6">
+      {/* Left side: the version's art */}
+      <div className="relative w-[350px] shrink-0 overflow-hidden rounded-2xl shadow-2xl">
+        <div className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-t from-background/80 via-transparent to-transparent" />
+        <img src={version.image} alt={version.title} className="h-full w-full object-cover" />
       </div>
 
-      {/* Right side: Content */}
-      <div className="flex-1 flex flex-col pt-4 pb-2 relative">
-        
-        {/* Top section: Title */}
+      {/* Right side: content */}
+      <div className="relative flex flex-1 flex-col pb-2">
+        <button
+          onClick={() => navigate("/")}
+          className="mb-4 flex w-fit items-center gap-2 rounded-lg px-2 py-1 text-sm font-semibold text-muted-foreground transition-colors hover:bg-secondary/50 hover:text-white"
+        >
+          <ArrowLeft size={16} />
+          Назад
+        </button>
+
         <div className="mb-6">
-          <h1 className="text-3xl font-extrabold text-white tracking-tight mb-1">26.2 FREE</h1>
-          <h2 className="text-sm text-muted-foreground font-medium uppercase tracking-wider">Клиент</h2>
+          <h1 className="mb-1 text-3xl font-extrabold tracking-tight text-white">
+            {version.title} <span className="text-primary">{version.tag}</span>
+          </h1>
+          <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">{version.subtitle}</h2>
         </div>
 
-        {/* Text Description */}
-        <div className="text-sm text-gray-300 leading-relaxed max-w-xl">
-          Мы создали для вас лучший клиент, который даст вам огромное преимущество в игре. 
-          В этом клиенте огромный функционал, который подойдет под все популярные сервера майнкрафт. 
-          Этот клиент является стабильным, а это означает, что вы получите наилучший игровой опыт 
-          без багов и различных ошибок.
-        </div>
+        <div className="max-w-xl text-sm leading-relaxed text-gray-300">{version.description}</div>
 
-        {/* Bottom section: Play Button */}
-        <div className="mt-auto flex justify-end">
-          <button 
-            onClick={handlePlayClick}
-            disabled={status !== 'idle' && status !== 'playing'}
+        <div className="mt-auto flex items-center justify-end gap-3">
+          <button
+            onClick={openMods}
+            className="flex items-center gap-2 rounded-xl bg-secondary px-5 py-3 text-sm font-bold uppercase tracking-wider text-white transition-colors hover:bg-secondary/80"
+          >
+            <FolderOpen size={18} />
+            Папка модов
+          </button>
+
+          <button
+            onClick={launch}
+            disabled={status !== "idle" || otherRunning}
             className={`
-              font-bold py-3 px-8 rounded-xl flex items-center gap-3 transition-all shadow-lg
-              ${status === 'idle' ? 'bg-primary hover:bg-primary/90 text-primary-foreground hover:scale-105 active:scale-95 shadow-[0_0_20px_rgba(255,107,0,0.3)] hover:shadow-[0_0_30px_rgba(255,107,0,0.5)]' : ''}
-              ${status === 'checking' || status === 'starting' ? 'bg-secondary text-white cursor-wait' : ''}
-              ${status === 'downloading' ? 'bg-secondary text-white cursor-wait overflow-hidden relative' : ''}
-              ${status === 'playing' ? 'bg-green-600 hover:bg-green-700 text-white' : ''}
+              relative flex items-center gap-3 overflow-hidden rounded-xl px-8 py-3 font-bold shadow-lg transition-all
+              ${status === "idle" && !otherRunning ? "bg-primary text-primary-foreground shadow-[0_0_20px_rgba(255,107,0,0.3)] hover:scale-105 hover:bg-primary/90 hover:shadow-[0_0_30px_rgba(255,107,0,0.5)] active:scale-95" : ""}
+              ${otherRunning ? "cursor-not-allowed bg-secondary text-muted-foreground" : ""}
+              ${status === "launching" || status === "starting" || status === "downloading" ? "cursor-wait bg-secondary text-white" : ""}
+              ${status === "running" ? "bg-green-600 text-white" : ""}
             `}
           >
-            {status === 'downloading' && (
-              <div 
-                className="absolute left-0 top-0 bottom-0 bg-primary/30 transition-all duration-300 ease-out" 
-                style={{ width: `${progress}%` }} 
+            {status === "downloading" && (
+              <div
+                className="absolute bottom-0 left-0 top-0 bg-primary/30 transition-all duration-300 ease-out"
+                style={{ width: `${game.percent ?? 0}%` }}
               />
             )}
-            
             <div className="relative z-10 flex items-center gap-3">
-              {status === 'idle' && <Play size={18} fill="currentColor" />}
-              {(status === 'checking' || status === 'starting') && <Loader2 size={18} className="animate-spin" />}
-              {status === 'downloading' && <Download size={18} className="animate-bounce" />}
-              {status === 'playing' && <Check size={18} />}
-              
-              <span className="uppercase tracking-wider text-sm">
-                {status === 'idle' && "ЗАПУСТИТЬ"}
-                {status === 'checking' && "ПРОВЕРКА..."}
-                {status === 'starting' && "ЗАПУСК..."}
-                {status === 'downloading' && `ЗАГРУЗКА ${downloadType} ${progress}%`}
-                {status === 'playing' && "В ИГРЕ"}
-              </span>
+              {status === "idle" && !otherRunning && <Play size={18} fill="currentColor" />}
+              {(status === "launching" || status === "starting") && <Loader2 size={18} className="animate-spin" />}
+              {status === "downloading" && <Download size={18} className="animate-bounce" />}
+              {status === "running" && <Check size={18} />}
+              <span className="text-sm uppercase tracking-wider">{label}</span>
             </div>
           </button>
         </div>
       </div>
-      
     </div>
   );
 };

@@ -12,6 +12,13 @@ export function gameDir(): string {
   return localStorage.getItem('settings_dir') || defaultGameDir();
 }
 
+/** One version's own folder (mods, configs, worlds) inside the game folder. */
+export function instanceDir(version: string): string {
+  const req = (window as any).require;
+  if (!req) return '';
+  return req('path').join(gameDir(), 'instances', version);
+}
+
 /** Total physical RAM in MB, rounded down to a 512 MB step; 8192 when it cannot be read. */
 export function totalRamMb(): number {
   const req = (window as any).require;

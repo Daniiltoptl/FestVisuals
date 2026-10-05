@@ -120,3 +120,24 @@ jobs:
           name: ${{ steps.version.outputs.tag }}
           generate_release_notes: true
           files: ${{ steps.asset.outputs.asset }}
+
+      # The launcher installs the mod from the public releases repo (this repo is private, so
+      # players' launchers cannot read its releases). One rolling pre-release, tag "mod", always
+      # holds the current jar plus mod.json with its version and checksum; being a pre-release it
+      # never counts as the "latest" launcher release that the launcher's updater looks at.
+      - name: Publish mod for the launcher
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          REPO=Daniiltoptl/FestVisuals-Releases
+          SHA1=$(sha1sum festvisuals-free.jar | cut -d' ' -f1)
+          SIZE=$(stat -c %s festvisuals-free.jar)
+          printf '{"version":"%s","file":"festvisuals-free.jar","sha1":"%s","size":%s}\n' "$VERSION" "$SHA1" "$SIZE" > mod.json
+          if ! gh release view mod --repo "$REPO" >/dev/null 2>&1; then
+            gh release create mod --repo "$REPO" --prerelease --title "FestVisuals mod" --notes "Текущая сборка мода для лаунчера."
+          fi
+          # Jar first: whoever reads the new mod.json must find the matching jar already there.
+          gh release upload mod festvisuals-free.jar --repo "$REPO" --clobber
+          gh release upload mod mod.json --repo "$REPO" --clobber
