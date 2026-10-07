@@ -26,15 +26,18 @@ import com.fest.visuals.client.features.modules.render.WingsModule;
  */
 public class WingsLayer extends RenderLayer<AvatarRenderState, PlayerModel> {
 
-    /** Blades of one wing: angle above the horizontal (degrees), length and half-width, in blocks. */
+    /**
+     * Panels of one wing: angle above the horizontal (degrees), length and half-width, in blocks.
+     * Two broad upper panels sweeping up and out, two smaller lower ones out and down.
+     */
     private static final float[][] BLADES = {
-            {72f, 1.05f, 0.11f},
-            {50f, 1.20f, 0.13f},
-            {28f, 1.10f, 0.12f},
-            {-4f, 0.80f, 0.10f},
-            {-30f, 0.62f, 0.08f},
+            {52f, 1.30f, 0.23f},
+            {26f, 1.42f, 0.25f},
+            {-2f, 1.05f, 0.20f},
+            {-28f, 0.80f, 0.16f},
     };
-    private static final float SWEEP = 0.22f; // backward sweep per block of blade length
+    private static final float SWEEP = 0.18f;     // backward sweep per block of panel length
+    private static final float HINGE_X = 0.10f;   // each wing starts at its own shoulder blade
 
     public WingsLayer(RenderLayerParent<AvatarRenderState, PlayerModel> renderer) {
         super(renderer);
@@ -60,14 +63,15 @@ public class WingsLayer extends RenderLayer<AvatarRenderState, PlayerModel> {
 
         poseStack.pushPose();
         this.getParentModel().body.translateAndRotate(poseStack);
-        poseStack.translate(0, 3 / 16f, 2.2f / 16f); // between the shoulder blades, on the back
+        poseStack.translate(0, 5 / 16f, 2.2f / 16f); // shoulder-blade height, on the back
         float scale = wings.scale.getValue();
         poseStack.scale(scale, scale, scale);
 
         for (int side = -1; side <= 1; side += 2) {
             poseStack.pushPose();
+            poseStack.translate(side * HINGE_X, 0, 0);
             // Folded slightly back, flapping around the vertical hinge.
-            poseStack.mulPose(Axis.YP.rotationDegrees(-side * (18f + swing)));
+            poseStack.mulPose(Axis.YP.rotationDegrees(-side * (10f + swing)));
             final int s = side;
             collector.submitCustomGeometry(poseStack, RenderTypes.debugQuads(), (pose, consumer) -> {
                 for (float[] blade : BLADES) quad(pose, consumer, kite(s, blade), fillColor);
@@ -89,7 +93,7 @@ public class WingsLayer extends RenderLayer<AvatarRenderState, PlayerModel> {
         float length = blade[1], halfWidth = blade[2];
         float dx = (float) Math.cos(angle) * side, dy = (float) -Math.sin(angle);
         float px = -dy, py = dx; // perpendicular within the wing plane
-        float shoulder = length * 0.38f;
+        float shoulder = length * 0.45f;
         return new float[][] {
                 {0f, 0f, 0f},
                 {dx * shoulder + px * halfWidth, dy * shoulder + py * halfWidth, shoulder * SWEEP},

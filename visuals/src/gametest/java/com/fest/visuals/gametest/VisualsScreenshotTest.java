@@ -62,6 +62,13 @@ public class VisualsScreenshotTest implements FabricClientGameTest {
             context.runOnClient(mc -> mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK));
             context.waitTicks(5);
             shot(context, "ft_circle_third");
+            context.runOnClient(mc -> com.fest.visuals.client.features.modules.render.WingsModule.getInstance().setEnabled(true));
+            context.waitTicks(10);
+            shot(context, "wings_back");
+            context.runOnClient(mc -> mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_FRONT));
+            context.waitTicks(5);
+            shot(context, "wings_front");
+            context.runOnClient(mc -> com.fest.visuals.client.features.modules.render.WingsModule.getInstance().setEnabled(false));
             context.runOnClient(mc -> mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON));
 
             hold(context, server, "snowball");
