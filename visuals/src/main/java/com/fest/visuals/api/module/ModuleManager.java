@@ -35,6 +35,7 @@ public class ModuleManager {
                 // RENDER
                 AspectRatioModule.getInstance(),
                 ChinaHatModule.getInstance(),
+                WingsModule.getInstance(),
                 ChunkFadeModule.getInstance(),
                 FpsBoostModule.getInstance(),
                 CriticalEffectModule.getInstance(),

@@ -69,6 +69,7 @@ const Index = () => {
       ram,
       username: localStorage.getItem("user_login") || "FestPlayer",
       closeOnLaunch: localStorage.getItem("settings_close_launch") === "true",
+      vulkan: localStorage.getItem("settings_vulkan") !== "false",
       window: { width, height, fullscreen: localStorage.getItem("settings_fullscreen") === "true" },
     });
   };

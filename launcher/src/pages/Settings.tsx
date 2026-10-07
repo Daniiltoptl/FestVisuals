@@ -13,6 +13,7 @@ const Settings = () => {
   const [resW, setResW] = useState(() => localStorage.getItem('settings_res_w') || '1920');
   const [resH, setResH] = useState(() => localStorage.getItem('settings_res_h') || '1080');
   const [fullscreen, setFullscreen] = useState(() => localStorage.getItem('settings_fullscreen') === 'true');
+  const [vulkanEnabled, setVulkanEnabled] = useState(() => localStorage.getItem('settings_vulkan') !== 'false');
   const [closeOnLaunch, setCloseOnLaunch] = useState(() => localStorage.getItem('settings_close_launch') === 'true');
 
   // Save settings on change
@@ -23,7 +24,8 @@ const Settings = () => {
     localStorage.setItem('settings_res_h', resH);
     localStorage.setItem('settings_fullscreen', String(fullscreen));
     localStorage.setItem('settings_close_launch', String(closeOnLaunch));
-  }, [ram, gameDir, resW, resH, fullscreen, closeOnLaunch]);
+    localStorage.setItem('settings_vulkan', String(vulkanEnabled));
+  }, [ram, gameDir, resW, resH, fullscreen, closeOnLaunch, vulkanEnabled]);
 
   return (
     <div className="w-full h-full p-6 overflow-y-auto">
@@ -171,9 +173,18 @@ const Settings = () => {
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Закрывать лаунчер при запуске</span>
-                <Switch 
-                  checked={closeOnLaunch} 
-                  onCheckedChange={setCloseOnLaunch} 
+                <Switch
+                  checked={closeOnLaunch}
+                  onCheckedChange={setCloseOnLaunch}
+                />
+              </div>
+              {/* The Vulkan renderer swap is not wired up yet: shown, but locked until it is. */}
+              <div className="flex items-center justify-between opacity-50">
+                <span className="text-sm font-medium">Vulkan Mod (заменяет Sodium) — скоро</span>
+                <Switch
+                  checked={vulkanEnabled}
+                  onCheckedChange={setVulkanEnabled}
+                  disabled
                 />
               </div>
             </div>

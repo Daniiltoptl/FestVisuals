@@ -358,7 +358,7 @@ export function instanceDir(root, version) {
  * emit(channel, payload) reports: launch-progress {type, percent}, launch-success, game-ready,
  * game-closed (code), launch-error (message).
  */
-export async function launchGame({ version, root: requestedRoot, ram, username, bundledJar, window }, emit) {
+export async function launchGame({ version, root: requestedRoot, ram, username, bundledJar, window, vulkan }, emit) {
   const cfg = VERSIONS[version];
   if (!cfg) throw new Error(`Неизвестная версия ${version}`);
 
@@ -382,7 +382,7 @@ export async function launchGame({ version, root: requestedRoot, ram, username, 
   const [javaPath] = await Promise.all([
     ensureJava(root, javaComponent, progress),
     ensureFabricProfile(root, version),
-    ensureMods(gameDir, version, { festvisualsJar, progress }),
+    ensureMods(gameDir, version, { festvisualsJar, progress, vulkan }),
   ]);
 
   // Drop any half-downloaded jar from a previous run so the verify/download below replaces it.

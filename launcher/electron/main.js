@@ -49,7 +49,9 @@ server.listen(4567, '127.0.0.1');
  * applied when the launcher quits.
  */
 function setupUpdater() {
-  if (!app.isPackaged) return;
+  // electron-updater can only replace an installed (NSIS) launcher; the portable exe updates by
+  // downloading a newer one.
+  if (!app.isPackaged || process.env.PORTABLE_EXECUTABLE_DIR) return;
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
 

@@ -8,12 +8,13 @@ export const VERSIONS = {
     // FestVisuals itself; its jar already carries Sodium, Lithium, FerriteCore, ImmediatelyFast
     // and Dynamic FPS, so only Fabric API is added next to it.
     festvisuals: true,
-    mods: ['fabric-api'],
+    // ViaFabricPlus: the version picker in the multiplayer menu, to join servers of other versions.
+    mods: ['fabric-api', 'viafabricplus'],
   },
   '1.21.11': {
     loader: '0.19.5',
     festvisuals: false,
-    mods: ['fabric-api', 'sodium', 'lithium', 'ferrite-core', 'immediatelyfast', 'dynamic-fps'],
+    mods: ['fabric-api', 'sodium', 'lithium', 'ferrite-core', 'immediatelyfast', 'dynamic-fps', 'viafabricplus'],
   },
   '1.16.5': {
     loader: '0.19.5',

@@ -49,16 +49,19 @@ function jarsIn(dir) {
 }
 
 /** Brings <gameDir>/mods in line with the version's mod list; `festvisualsJar` goes in for 26.2. */
-export async function ensureMods(gameDir, version, { festvisualsJar, progress }) {
+// eslint-disable-next-line no-unused-vars -- `vulkan` is accepted for the Vulkan option, which has
+// no renderer to switch to yet; every version currently installs its regular mod list.
+export async function ensureMods(gameDir, version, { festvisualsJar, progress, vulkan }) {
   const cfg = VERSIONS[version];
+  const modsList = cfg.mods;
   const modsDir = path.join(gameDir, 'mods');
   fs.mkdirSync(modsDir, { recursive: true });
   const state = readState(modsDir);
 
   // Ask Modrinth for newer builds twice a day; offline, the last known files are used.
-  const stale = Date.now() - (state.resolvedAt || 0) > REFRESH_EVERY_MS || cfg.mods.some((slug) => !state.resolved[slug]);
+  const stale = Date.now() - (state.resolvedAt || 0) > REFRESH_EVERY_MS || modsList.some((slug) => !state.resolved[slug]);
   if (stale) {
-    await Promise.all(cfg.mods.map(async (slug) => {
+    await Promise.all(modsList.map(async (slug) => {
       try {
         const latest = await resolveLatest(slug, version);
         if (latest) state.resolved[slug] = latest;
@@ -72,7 +75,7 @@ export async function ensureMods(gameDir, version, { festvisualsJar, progress })
 
   const keep = new Set();
   const ids = new Set();
-  const files = cfg.mods.map((slug) => state.resolved[slug]).filter(Boolean);
+  const files = modsList.map((slug) => state.resolved[slug]).filter(Boolean);
   for (const [i, file] of files.entries()) {
     const target = path.join(modsDir, file.filename);
     if (!fs.existsSync(target) || fs.statSync(target).size !== file.size) {

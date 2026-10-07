@@ -57,6 +57,18 @@ jobs:
       - name: Build UI
         run: npm run build
 
+      # electron-builder would create the release with this (private) repo's commit as the tag
+      # target, which does not exist in the releases repo ("Published releases must have a valid
+      # tag"). Create it there from its own main branch first; electron-builder then uploads into it.
+      - name: Create release in the releases repo
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          gh release view "v$VERSION" --repo Daniiltoptl/FestVisuals-Releases >/dev/null 2>&1 \
+            || gh release create "v$VERSION" --repo Daniiltoptl/FestVisuals-Releases --target main \
+                 --title "FestVisuals Launcher $VERSION" --notes "Установщик лаунчера FestVisuals."
+
       - name: Build and publish installer
         env:
           GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
