@@ -324,6 +324,16 @@ public class HwModule extends Module {
 
         BlockPos target = hit.getBlockPos();
         Direction side = hit.getDirection();
+        if (hit.getType() == net.minecraft.world.phys.HitResult.Type.MISS) {
+            float pitch = mc.player.getXRot();
+            if (pitch > 45) {
+                side = Direction.UP;
+            } else if (pitch < -45) {
+                side = Direction.DOWN;
+            } else {
+                side = mc.player.getDirection().getOpposite();
+            }
+        }
         int x = target.getX(), y = target.getY(), z = target.getZ();
 
         AABB zone = switch (side) {

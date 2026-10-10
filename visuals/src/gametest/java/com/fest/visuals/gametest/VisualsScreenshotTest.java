@@ -30,6 +30,14 @@ public class VisualsScreenshotTest implements FabricClientGameTest {
             TestServerContext server = world.getServer();
 
             server.runCommand("gamemode creative @a");
+            server.runCommand("scoreboard objectives add festtest dummy {\"text\":\"BedWars\"}");
+            server.runCommand("scoreboard objectives setdisplay sidebar festtest");
+            server.runCommand("scoreboard players set Alpha festtest 12");
+            server.runCommand("scoreboard players set Bravo festtest 7");
+            server.runCommand("scoreboard players set Charlie festtest 3");
+            world.getClientLevel().waitForChunksRender();
+            context.waitTicks(20);
+            shot(context, "scoreboard_default");
             server.runCommand("time set noon");
             server.runCommand("weather clear");
             context.getInput().lookAt(0f, 12f);

@@ -85,7 +85,8 @@ public class AuctionHelperModule extends Module {
     public void prepare(Component title, List<Slot> slots) {
         ranks.clear();
         bestPerItem = null;
-        if (!isEnabled() || (onlyAuction.getValue() && !looksLikeAuction(title))) return;
+        if (!isEnabled()) return;
+        boolean isAuction = !onlyAuction.getValue() || looksLikeAuction(title);
 
         record Lot(Slot slot, long price, double perUnit) {}
         List<Lot> lots = new ArrayList<>();
@@ -99,6 +100,8 @@ public class AuctionHelperModule extends Module {
             if (price <= 0) continue;
             lots.add(new Lot(slot, price, price / (double) Math.max(1, stack.getCount())));
         }
+        
+        if (onlyAuction.getValue() && !isAuction && lots.isEmpty()) return;
         if (lots.isEmpty()) return;
 
         lots.sort((a, b) -> Long.compare(a.price(), b.price()));

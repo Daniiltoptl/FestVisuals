@@ -20,6 +20,7 @@ public class WidgetManager {
                 new ArmorWidget(),
                 new KeybindsWidget(),
                 new PotionsWidget(),
+                new ScoreboardWidget(),
                 new StaffsWidget(),
                 new CooldownsWidget(),
 

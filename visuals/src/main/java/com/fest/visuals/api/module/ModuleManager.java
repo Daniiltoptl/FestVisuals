@@ -30,6 +30,7 @@ public class ModuleManager {
                 SaturationModule.getInstance(),
                 DurabilityViewerModule.getInstance(),
                 StatsHudModule.getInstance(),
+                ScoreboardHudModule.getInstance(),
                 
                 // RENDER
                 AspectRatioModule.getInstance(),
