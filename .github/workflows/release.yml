@@ -162,8 +162,7 @@ jobs:
           cp "$JAR" festvisuals-1.21.11.jar
           SHA1=$(sha1sum festvisuals-1.21.11.jar | cut -d' ' -f1)
           SIZE=$(stat -c %s festvisuals-1.21.11.jar)
-          printf '{"version":"%s","file":"festvisuals-1.21.11.jar","sha1":"%s","size":%s}
-' "$VERSION" "$SHA1" "$SIZE" > mod-1.21.11.json
+          printf '{"version":"%s","file":"festvisuals-1.21.11.jar","sha1":"%s","size":%s}\n' "$VERSION" "$SHA1" "$SIZE" > mod-1.21.11.json
           if ! gh release view mod-1.21.11 --repo "$REPO" >/dev/null 2>&1; then
             gh release create mod-1.21.11 --repo "$REPO" --prerelease --title "FestVisuals mod 1.21.11" --notes "Текущая сборка мода 1.21.11 для лаунчера."
           fi
