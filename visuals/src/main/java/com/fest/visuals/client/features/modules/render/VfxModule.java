@@ -8,12 +8,30 @@ import com.fest.visuals.api.module.ModuleRegister;
 import com.bloom.client.config.BloomConfig;
 import com.beash.atmospherics.AtmosphericsClient;
 
-@ModuleRegister(name = "VFX", desc = "\u0413\u0440\u0430\u0444\u043E\u043D", category = Category.RENDER)
+@ModuleRegister(name = "Atmospherics", desc = "\u0413\u0440\u0430\u0444\u043E\u043D", category = Category.RENDER)
 public class VfxModule extends Module {
     @Getter private static final VfxModule instance = new VfxModule();
 
+    private boolean synced;
+
+    /**
+     * Off by default: Atmospherics' own presets bring ground fog, a night sky full of stars and
+     * heavy haze that players read as "no blocks" and green fog rising from the ground.
+     */
     public VfxModule() {
-        this.setEnabled(true, false);
+    }
+
+    /** Once, after configs are loaded, makes the two bundled mods match this module's state. */
+    public void syncOnce() {
+        if (synced) return;
+        synced = true;
+        try {
+            boolean on = isEnabled();
+            BloomConfig.get().enabled = on;
+            AtmosphericsClient.getConfig().masterEnabled = on;
+        } catch (Throwable ignored) {
+            // the bundled mods are optional extras
+        }
     }
 
     @Override
@@ -29,7 +47,7 @@ public class VfxModule extends Module {
             AtmosphericsClient.getConfig().masterEnabled = true;
             AtmosphericsClient.saveConfig();
         } catch (Throwable t) {
-            t.printStackTrace();
+            // bundled mod unavailable: nothing to toggle
         }
     }
 
@@ -42,7 +60,7 @@ public class VfxModule extends Module {
             AtmosphericsClient.getConfig().masterEnabled = false;
             AtmosphericsClient.saveConfig();
         } catch (Throwable t) {
-            t.printStackTrace();
+            // bundled mod unavailable: nothing to toggle
         }
     }
 }

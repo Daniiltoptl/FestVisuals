@@ -26,6 +26,7 @@ public class HeartbeatService implements QuickImports {
 
     private void tickEvent() {
         TickEvent.getInstance().subscribe(new Listener<>(event -> {
+            com.fest.visuals.client.features.modules.render.VfxModule.getInstance().syncOnce();
             ConfigSkin.getInstance().fetchSkin();
         }));
     }
