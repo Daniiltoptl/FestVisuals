@@ -17,7 +17,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import com.fest.visuals.api.event.events.render.Render2DEvent;
 import com.fest.visuals.client.features.modules.hud.PotionsHudModule;
 import com.fest.visuals.client.features.modules.hud.SaturationModule;
-import com.fest.visuals.client.features.modules.hud.ScoreboardHudModule;
 import com.fest.visuals.client.features.modules.render.CrosshairModule;
 import com.fest.visuals.client.features.modules.render.RemovalsModule;
 
@@ -48,9 +47,8 @@ public class MixinInGameHud {
     private void renderScoreboardSidebar(GuiGraphicsExtractor context, Objective objective, CallbackInfo ci) {
         if (Minecraft.getInstance().player == null) return;
 
-        // Vanilla stands down only while the client draws its own copy; with the module off the
-        // untouched sidebar comes back.
-        if (RemovalsModule.getInstance().isScoreboard() || ScoreboardHudModule.getInstance().isEnabled()) {
+        // Vanilla sidebar is only hidden by the Removals switch.
+        if (RemovalsModule.getInstance().isScoreboard()) {
             ci.cancel();
         }
     }

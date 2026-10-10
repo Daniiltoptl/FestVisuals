@@ -21,7 +21,7 @@ MODULE_NAMES = [
     "Auto Accept", "Auto Auth", "Auto Eat", "Auto Invisible", "Auto Resell", "Auto Sprint",
     "Death Cords", "Fast Scroller", "Zoom", "Name Protect", "Sounds",
     "Potions", "Cooldowns", "Binds", "Target HUD", "Armor", "Dynamic Island",
-    "Inventory", "Scoreboard", "Stats", "Saturation", "Click GUI",
+    "Inventory", "Stats", "Saturation", "Click GUI",
 ]
 
 _TRANSLIT = str.maketrans({

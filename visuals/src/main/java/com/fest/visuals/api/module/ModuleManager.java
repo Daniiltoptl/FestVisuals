@@ -27,7 +27,6 @@ public class ModuleManager {
                 ArmorHudModule.getInstance(),
                 DynamicIslandModule.getInstance(),
                 InventoryHudModule.getInstance(),
-                ScoreboardHudModule.getInstance(),
                 SaturationModule.getInstance(),
                 DurabilityViewerModule.getInstance(),
                 StatsHudModule.getInstance(),

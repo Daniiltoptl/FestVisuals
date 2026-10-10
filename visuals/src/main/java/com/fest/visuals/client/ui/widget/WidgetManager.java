@@ -25,7 +25,6 @@ public class WidgetManager {
 
                 new TargetInfoWidget(),
                 new DynamicIslandWidget(),
-                new ScoreboardWidget(),
                 new InventoryWidget(),
 
                 new FPSWidget(),
